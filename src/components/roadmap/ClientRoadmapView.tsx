@@ -6,6 +6,12 @@ import {
   currentDisplayPhase, dueLabel, launchDelayBreakdown, overallProgress, phaseResponsibleLabel, type Phase,
 } from '../../lib/roadmapPhases'
 import RoadmapView from './RoadmapView'
+import { formatDateOnly } from '../../lib/dates'
+import { estimatedLaunchDate, phaseDateRanges } from '../../lib/estimateViews'
+import { useProjectEstimates } from '../../hooks/useProjectEstimates'
+import EstimatesToggle from '../shared/EstimatesToggle'
+
+const shortDate = (key: string) => formatDateOnly(key, { day: 'numeric', month: 'short' })
 
 export interface DelayEventLike {
   id: string
@@ -24,7 +30,16 @@ interface Props {
 }
 
 export default function ClientRoadmapView({ project, tasks, delayEvents, mode }: Props) {
-  const [showGantt, setShowGantt] = useState(false)
+  const [ganttOverride, setGanttOverride] = useState<boolean | null>(null)
+  const [showEstimates, setShowEstimates] = useState(true)
+  // Estimados compartidos con el Gantt y los calendarios (solo proyectos activos en proceso).
+  const estimates = useProjectEstimates({ tasks, projects: [project], enabled: showEstimates })
+  const phaseRanges = phaseDateRanges(tasks, estimates)
+  const launchEstimate = estimatedLaunchDate(project, phaseRanges)
+  const hasEstimates = estimates.size > 0
+  // "Tareas en el tiempo" se abre solo cuando el proyecto tiene estimados (hasta que alguien lo cambie).
+  const showGantt = ganttOverride ?? hasEstimates
+  const setShowGantt = (update: (value: boolean) => boolean) => setGanttOverride(update(showGantt))
   const [delayHistoryOpen, setDelayHistoryOpen] = useState(false)
   const current = currentDisplayPhase(tasks)
   const overall = overallProgress(tasks)
@@ -46,7 +61,10 @@ export default function ClientRoadmapView({ project, tasks, delayEvents, mode }:
           <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
             <MapIcon size={16} className="text-blue-700" /> Hoja de ruta — {DISPLAY_PHASE_LABELS[current]}
           </h3>
-          <span className="text-sm font-bold text-blue-700">{overall}% completado</span>
+          <span className="flex items-center gap-3">
+            <EstimatesToggle checked={showEstimates} onChange={setShowEstimates} />
+            <span className="text-sm font-bold text-blue-700">{overall}% completado</span>
+          </span>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-7">
           {DISPLAY_PHASE_ORDER.map(phase => {
@@ -59,6 +77,15 @@ export default function ClientRoadmapView({ project, tasks, delayEvents, mode }:
                   <div className={`h-1.5 rounded-full ${stats.pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${stats.pct}%` }} />
                 </div>
                 <p className="mt-1 text-[10px] text-slate-400">{stats.total > 0 ? `${stats.done}/${stats.total}` : '—'}</p>
+                {phaseRanges[phase] && (
+                  <p
+                    data-estimated={phaseRanges[phase]!.estimated ? 'true' : undefined}
+                    title={phaseRanges[phase]!.estimated ? 'Fechas aproximadas: se confirman cuando el equipo fija la entrega' : 'Fechas reales de la fase'}
+                    className={`mt-1 truncate rounded px-1 py-0.5 text-[10px] font-semibold ${phaseRanges[phase]!.estimated ? 'border border-dashed border-blue-300 text-blue-700 opacity-50' : 'bg-white text-slate-600'}`}
+                  >
+                    {phaseRanges[phase]!.estimated ? '≈ ' : ''}{shortDate(phaseRanges[phase]!.start)}{phaseRanges[phase]!.end !== phaseRanges[phase]!.start ? ` – ${shortDate(phaseRanges[phase]!.end)}` : ''}
+                  </p>
+                )}
                 {phase === 'produccion' && stats.lanes && (
                   <div className="mt-1.5 space-y-1 text-left">
                     <p className="text-[9px] text-slate-400">Video {stats.lanes.produccion_video.done}/{stats.lanes.produccion_video.total}</p>
@@ -106,7 +133,14 @@ export default function ClientRoadmapView({ project, tasks, delayEvents, mode }:
             )}
           </>
         ) : (
-          <p className="mt-2 text-sm text-blue-100">Aún no se ha definido la fecha de lanzamiento.</p>
+          launchEstimate ? (
+            <>
+              <p data-estimated="true" className="mt-2 text-2xl font-bold opacity-60">≈ {formatDateOnly(launchEstimate, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p className="mt-1 text-sm text-blue-100">Fecha aproximada — se confirma cuando el equipo fija las entregas.</p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-blue-100">Aún no se ha definido la fecha de lanzamiento.</p>
+          )
         )}
       </section>
 
@@ -161,7 +195,7 @@ export default function ClientRoadmapView({ project, tasks, delayEvents, mode }:
           {showGantt ? 'Ocultar tareas en el tiempo' : 'Ver tareas en el tiempo →'}
         </button>
       </div>
-      {showGantt && <RoadmapView tasks={tasks} title={project.name} onSelectTask={task => openTask(task.id)} />}
+      {showGantt && <RoadmapView tasks={tasks} title={project.name} projects={[project]} onSelectTask={task => openTask(task.id)} />}
     </div>
   )
 }

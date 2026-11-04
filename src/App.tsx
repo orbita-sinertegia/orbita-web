@@ -64,7 +64,8 @@ function AppContent() {
       {/* Modales del reloj checador (equipo y admin) */}
       {user.role !== 'client' && needsCheckIn && <CheckInModal />}
       {user.role !== 'client' && showOvertimeModal && <OvertimeModal />}
-      {user.role === 'team' && <MissingDatesModal />}
+      {/* Misiones sin fecha: equipo y administradores (cada quien las suyas) */}
+      {user.role !== 'client' && <MissingDatesModal />}
       {mustCompleteTeamProfile && <RequiredTeamProfileModal onComplete={() => setProfileGateCompleted(true)} />}
       {user.role === 'team' && !mustCompleteTeamProfile && <BirthdayCelebration />}
     </div>

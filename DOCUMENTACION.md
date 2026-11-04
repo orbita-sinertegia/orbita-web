@@ -394,3 +394,75 @@ Antes, un administrador solo podía completar o **borrar para siempre** una tare
   3. Fusionar este PR. El frontend asume que `archived_at` ya existe — por eso el SQL va primero.
   - `sql/2026-10-23_cerrar_allow_all.sql` es **aparte y NO se corre** sin que Tony lo apruebe y se pruebe la app (equipo, cliente y admin): cierra la política `"allow all"` de `tasks` y la reemplaza por una política de edición limitada a administradores/Líder, responsable, creador, revisores y el cliente del proyecto.
 - **Decisiones tomadas sin preguntar:** el borrado definitivo sigue reutilizando `admin_delete_team_task` en vez de crear una función nueva, para no duplicar la lista de tablas relacionadas que hay que limpiar. La confirmación de borrado definitivo es sensible a mayúsculas (salvo espacios al inicio/fin) para que copiar y pegar el título siga funcionando sin volverse una confirmación "a ciegas". Las tareas archivadas se consultan con su propia llamada en **Tareas del equipo** (no se mezclan con la lista de tareas activas que ya traen los tableros), para no tener que re-filtrar `archived_at` en cada vista que consume esa lista.
+
+## Control del super admin: tareas realizadas y estado del proyecto (2 de noviembre de 2026, rama feat/control-super-admin)
+
+- **Editar tareas ya realizadas:** el lápiz ya aparecía en tareas completadas para cualquier admin, pero "Editar tarea" no tenía estatus ni fecha de realización. Ahora, **solo el super admin** ve en ese diálogo el bloque "Estatus (solo super admin)": Pendiente / En progreso / Detenida / Realizada y la fecha de realización. Reabrir una tarea quita su fecha de realización (y, si estaba "aprobada", limpia la revisión); marcarla realizada sin fecha usa la de hoy (CDMX). Se guarda con `super_admin_set_task_status` (queda en `task_audit_log`). Los demás admins siguen editando todos los otros campos como antes.
+- **Tabla del proyecto:** el filtro por omisión se llama "Sin completadas" (antes "Todos los estados", que ocultaba las completadas). Nueva opción "Todas (con completadas)".
+- **Estado del proyecto:** Activo / Pausado / **Finalizado**. "Finalizado" es el valor existente `completado` con otra etiqueta (no cambia datos). Solo el super admin ve el selector; los demás ven la etiqueta. En la base, el trigger `projects_status_super_admin_only` rechaza cambios de estado de quien no sea super admin.
+- **Proyectos finalizados en las vistas:** sus tareas pendientes se ocultan por omisión en Carga del equipo, Tareas del equipo, Calendario, Hoja de ruta general, Tablero semanal/Scorecard, "Mis tareas" del equipo y los contadores del panel; un aviso permite mostrarlas. Las completadas se conservan como historial. El detalle del proyecto y el portal del cliente siguen mostrando todo (el portal abre primero un proyecto activo). Pausados: siguen visibles, sin fechas estimadas.
+- **Eliminar proyecto:** solo el super admin ve "Eliminar proyecto". En la base, el trigger `projects_delete_super_admin_only` (BEFORE DELETE) rechaza el borrado si hay un usuario en la petición que no es super admin activo — también dentro de `admin_delete_project`, que es security definer, por eso revisa `auth.uid()` y no `current_user`; todo se revierte, tareas incluidas. Editor SQL / service role no se bloquean.
+- **SQL:** `sql/2026-11-02_control_super_admin_00_revision.sql` (solo lectura) y `sql/2026-11-02_control_super_admin.sql` (triggers creados con bloque DO que revisa `pg_trigger`; sin DROP/DELETE/TRUNCATE).
+
+## Finalizar un proyecto elimina sus pendientes (2 de noviembre de 2026, rama feat/finalizar-borra)
+
+- Al pasar un proyecto a **Finalizado** (`completado`), la base **elimina para siempre** sus tareas no entregadas (archivadas incluidas). Se conservan las realizadas (`status = 'completada'`) y las entregadas (`review_status` en `pendiente_revision`, `pendiente_trafficker`, `en_revision`, `aprobada`; mismo criterio que Entregables del cliente). `cambios_solicitados` es retrabajo pendiente y se elimina.
+- El borrado es el mismo que `admin_delete_team_task`: foto completa en `task_audit_log` (acción `delete`, `before.deleted_reason = 'proyecto_finalizado'`), dependencias/notificaciones/mensajes a null, y se eliminan comentarios, enlaces, subtareas, tiempos y calificaciones. Si una llave foránea no prevista lo impide, se revierte todo, incluido el cambio de estado.
+- Trigger `projects_finalize_delete` (AFTER UPDATE OF status, security definer), funciones internas `delete_task_permanently_internal` y `purge_finalized_project_tasks` (sin permiso para la app) y `is_task_delivered`.
+- Solo actúa en la transición hacia Finalizado de aquí en adelante (`old.status` ≠ `completado` y `new.status` = `completado`). **No es retroactivo**: los proyectos ya finalizados (p. ej. Mel — PRODUCTO PDF) no se tocan.
+- Reactivar NO recupera lo eliminado.
+- En la app: elegir Finalizado abre una confirmación con cuántas tareas se eliminarán; después aparece un aviso con cuántas se eliminaron. El aviso/filtro de "pendientes de proyectos finalizados ocultas" se conserva como respaldo.
+- SQL: `sql/2026-11-02_finalizar_borra_00_revision.sql` (solo lectura: llaves foráneas hacia tasks; por proyecto ya finalizado, cuántas serían eliminables/se conservan, solo informativo; y todos los proyectos de Mel con estado, etapa y pendientes) y `sql/2026-11-02_finalizar_borra.sql`. Contiene DELETE: Supabase mostrará su aviso destructivo.
+
+## Finalizar: el super admin elige archivar o eliminar (2 de noviembre de 2026, rama feat/finalizar-elegir)
+
+- Ya no se elimina nada automáticamente al cambiar el estado: `trg_projects_finalize_delete()` quedó vacío (el trigger existe pero no hace nada).
+- Elegir **Finalizado** abre un diálogo con cuántas tareas pendientes hay (y cuántas ya estaban archivadas) y dos opciones: **Archivar (se pueden recuperar)** o **Eliminar para siempre** (con segunda confirmación). Ambas llaman a la RPC `finalize_project(p_project_id, p_mode)` (`'archivar'` / `'borrar'`, solo super admin), que pone el proyecto en `completado` y devuelve cuántas tareas archivó o eliminó. Realizadas y entregadas se conservan siempre (`is_task_delivered`).
+- Archivar marca `tasks.archived_via = 'proyecto_finalizado'` (+ `archive_reason = 'Proyecto finalizado'`, auditoría `archive`). Eliminar usa `purge_finalized_project_tasks` (foto en `task_audit_log`, archivadas pendientes incluidas).
+- Reactivar (Finalizado → Activo/Pausado) restaura solo las tareas con esa marca (trigger `projects_reactivate_restore`, auditoría `restore`) y la app avisa cuántas volvieron. Un archivado/restauración manual borra la marca (`tasks_clear_archived_via`), así nunca se restaura algo archivado a mano. Lo eliminado no vuelve.
+- SQL: `sql/2026-11-02_finalizar_elegir_00_revision.sql` (solo lectura) y `sql/2026-11-02_finalizar_elegir.sql` (sin sentencias destructivas).
+
+## Eliminar una tarea para siempre (super admin) (2 de noviembre de 2026, rama feat/borrar-tarea)
+
+- Bote de basura junto a "Archivar" en: la tabla "Tareas del proyecto", Tareas del equipo (tabla y tarjetas móviles) y el encabezado del detalle de la tarea. Solo lo ve el super admin activo; funciona con tareas archivadas o no.
+- Diálogo `DeleteTaskModal` con el nombre de la tarea y "no se puede deshacer"; después, aviso "Tarea … eliminada para siempre" y se refrescan las listas.
+- RPC `super_admin_delete_task(p_task_id)` (solo super admin) que usa `delete_task_permanently_internal`: foto completa en `task_audit_log` (`before.deleted_reason = 'eliminada_por_super_admin'`), dependencias/notificaciones/mensajes a null y borrado de comentarios, enlaces, subtareas, tiempos y calificaciones.
+- El borrado de Archivadas (cualquier admin, escribiendo el título) sigue igual con `admin_delete_team_task`.
+- SQL: `sql/2026-11-02_borrar_tarea_00_revision.sql` (solo lectura) y `sql/2026-11-02_borrar_tarea.sql` (sin sentencias destructivas).
+
+## Selección múltiple: archivar o eliminar varias tareas de una (2 de noviembre de 2026, rama feat/seleccion-multiple)
+
+- Casilla a la izquierda del nombre de cada tarea en "Tareas del proyecto" y en Tareas del equipo (tarjetas y tabla), más una casilla "seleccionar todas" que cubre solo las tareas visibles con los filtros/búsqueda (queda a medias cuando solo hay algunas). Solo la ven admins y super admin.
+- Con 1+ seleccionadas aparece la barra "N seleccionadas" con **Archivar** (admins y super admin, RPC `admin_archive_task` por tarea, motivo opcional para todas) y **Eliminar** (solo super admin, RPC `super_admin_delete_task` por tarea) y "Quitar selección".
+- `BulkTaskActionModal` confirma con el número de tareas (y "permanente, no se puede deshacer" al eliminar), muestra el avance y, si algunas fallan, lista cuáles y por qué. Al terminar se limpia la selección (las que fallaron quedan seleccionadas para reintentar), sale un aviso y se refrescan las listas.
+- Lógica pura en `src/lib/taskSelection.ts`. **No requiere SQL nuevo** (usa las RPC existentes).
+
+## Edición en línea en las tablas de tareas (2 de noviembre de 2026, rama feat/edicion-en-linea)
+
+- En "Tareas del proyecto" se editan con un clic: **Asignado a** (admins y equipo activos, la misma lista que el lápiz), **Depto** (lista de departamentos del equipo), **Prioridad** (Crítica/Alta/Media/Baja) y **La necesito para** (selector de fecha con botón para quitarla). En Tareas del equipo, en cada tarjeta: persona asignada y prioridad.
+- Guarda al elegir, con la misma RPC del lápiz (`admin_update_task`), así salen las mismas notificaciones (nueva misión asignada / reasignada / actualizada) y queda en `task_audit_log`.
+- Cambio optimista: se ve al instante; si la base lo rechaza, regresa al valor anterior y sale un aviso.
+- Permisos: admins y super admin; las tareas realizadas solo el super admin; el equipo ve texto. Tareas del departamento "Cliente": persona y depto solo con el lápiz (exigen el usuario cliente del proyecto); "Cliente" no aparece como opción en línea.
+- Lógica pura en `src/lib/inlineTaskEdit.ts`. **No requiere SQL nuevo.**
+
+## TEMPORAL: palomita verde "Marcar como realizada" (2 de noviembre de 2026, rama feat/marcar-realizada)
+
+> **Opción temporal** pedida por Tony "solo por estos días" para poner al día tareas que ya se hicieron. Para quitarla: en `src/lib/quickComplete.ts` cambiar `ENABLE_QUICK_COMPLETE = true` a `false` (desaparece todo), o borrar el archivo y sus usos (buscar `ENABLE_QUICK_COMPLETE` / `quickComplete`).
+
+- Solo el super admin activo. Palomita verde a la derecha del bote de basura en "Tareas del proyecto" y en el encabezado del detalle de la tarea (pide confirmar). No aparece en tareas ya realizadas ni archivadas.
+- En la tabla marca al instante y muestra un aviso con **Deshacer** (10 s), que regresa la tarea a su estatus anterior.
+- En la barra de selección múltiple (Tareas del proyecto y Tareas del equipo): **Marcar realizadas**, con diálogo que muestra cuántas, avance y cuáles fallaron.
+- Usa la misma RPC que el editor de estatus del super admin: `super_admin_set_task_status(p_task_id, 'completada', null)` → la base pone la fecha de realización de hoy (CDMX) y deja la auditoría en `task_audit_log`. **No requiere SQL nuevo.**
+- En Tareas del equipo las tarjetas ya tenían su botón "Marcar completada" (admins, `admin_complete_team_task`); no se duplicó.
+
+## Fase 1 · Claridad del equipo (2 de noviembre de 2026, rama feat/fase1-claridad)
+
+Sin SQL: todo usa RPC y permisos que ya existen.
+
+- **Reasignar en lote** (barra de selección en Tareas del proyecto y Tareas del equipo, admins y super admin): eliges una persona activa y se llama `admin_update_task` tarea por tarea (la misma RPC del lápiz, así cada quien recibe su aviso de "Misión reasignada"). Se saltan, con motivo visible: tareas del cliente (siempre las tiene el usuario cliente del proyecto), tareas realizadas (salvo super admin) y las que ya eran de esa persona. Mismo avance y manejo de fallas parciales que archivar/eliminar; las que fallan quedan seleccionadas.
+- **Fecha "La necesito para" en lote**: poner una fecha o quitarla (`needed_date` fecha o `null`) con la misma RPC. Se saltan realizadas (salvo super admin) y las que ya tenían ese valor. Sí aplica a tareas del cliente.
+- **Agenda del equipo** (`src/components/admin/TeamAgenda.tsx`, lógica en `src/lib/teamAgenda.ts`; menú Operación, visible para todos los admins): una fila por persona activa (equipo + admins, sin clientes) con conmutador Hoy / Semana / Mes y filtro por departamento. Por persona: pendientes en la ventana, atrasadas, en revisión y "sin planear" (sin fecha). Fecha efectiva = "Mi compromiso"; si no hay, "La necesito para". Semana = hasta el domingo; Mes = hasta fin de mes; todo con la fecha de CDMX. Clic en la persona despliega sus tareas; clic en una tarea abre el detalle. Se ignoran archivadas y pendientes de proyectos finalizados.
+- **"Misiones sin fecha" también para admins** (incluido el super admin), solo para sus propias tareas; los clientes siguen sin verlo.
+- **Responsable por defecto por departamento** al crear proyecto desde plantilla: `src/data/templateOwners.ts` → `DEFAULT_TEMPLATE_OWNERS`. Se entrega **vacío**. Para llenarlo: llave = grupo de la plantilla (`lider`, `webmaster`, `copy`, `diseno_web`, `diseno_ads`, `edicion_video`, `edicion_presentacion`, `trafficker`, `grabacion`) o el departamento (`diseno`, `edicion`) para cubrir varios grupos; valor = correo de la persona. Solo se resuelve a usuarios activos del equipo o a quien crea el proyecto; si no se encuentra, se usa el comportamiento de antes.
+- **Feriados**: `src/lib/holidays.ts` (`MX_HOLIDAYS`), días de descanso oficiales de México 2026–2027 (1 ene, primer lunes de feb, tercer lunes de mar, 1 may, 16 sep, tercer lunes de nov —16 nov 2026—, 25 dic). No incluye Semana Santa ni 12 de diciembre (agrégalos ahí si la agencia los descansa). Las estimaciones de fechas (`roadmapEstimate`) se los saltan como a los domingos y los calendarios muestran "Feriado · nombre". Ojo: estimaciones que cruzan el 16 de noviembre se recorren un día.
+- **Mi día** y el calendario del equipo usan la fecha de CDMX (`cdmxTodayKey`) y no la del navegador.

@@ -1,9 +1,10 @@
 import type { Task } from '../types'
+import { cdmxTodayKey, daysBetweenKeys, isDateKeyOverdue } from './dates'
 
 type DelayTask = Pick<Task, 'department' | 'commitment_date' | 'status' | 'delay_responsible' | 'completion_date'>
 
 export function isOverdue(task: Pick<Task, 'commitment_date' | 'status'>, today: Date = new Date()): boolean {
-  return !!task.commitment_date && task.status !== 'completada' && new Date(task.commitment_date) < today
+  return !!task.commitment_date && task.status !== 'completada' && isDateKeyOverdue(task.commitment_date, today)
 }
 
 /**
@@ -19,9 +20,8 @@ export function isClientAttributableDelay(task: DelayTask, today: Date = new Dat
 
 export function delayDaysFor(task: DelayTask, today: Date = new Date()): number {
   if (!task.commitment_date) return 0
-  const end = task.completion_date ? new Date(task.completion_date) : today
-  const start = new Date(task.commitment_date)
-  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000))
+  const endKey = task.completion_date ? task.completion_date.slice(0, 10) : cdmxTodayKey(today)
+  return Math.max(0, daysBetweenKeys(task.commitment_date.slice(0, 10), endKey))
 }
 
 /** Excluye del scorecard del equipo las tareas del cliente y los retrasos ya atribuidos al cliente. */

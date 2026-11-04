@@ -175,6 +175,52 @@ export const WEBINAR_ONLY_TITLES = new Set(soloWebinarTasks.map(task => task.tit
 const vslTasks: TemplateTask[] = [...baseTasks, ...soloVslTasks]
 const webinarTasks: TemplateTask[] = [...baseTasks, ...soloWebinarTasks]
 
+// ─────────────────────────────────────────────
+//  RESTAURANTE: solo anuncios pagados (Meta, Google Ads, TikTok Ads).
+//  Sin páginas web ni VSL, así que no hay fase Producción · Páginas.
+// ─────────────────────────────────────────────
+const restauranteTasks: TemplateTask[] = [
+  // ── Cliente ──
+  { title: 'Llenar el brief del restaurante (menú, promociones, horarios y sucursales)', department: 'cliente', priority: 'alta', phase: 'entrada' },
+  { title: 'Dar acceso a Meta Business (BM, página de Facebook e Instagram)', department: 'cliente', priority: 'alta', phase: 'entrada' },
+  { title: 'Dar acceso a Google Ads (y al Perfil de Negocio de Google)', department: 'cliente', priority: 'alta', phase: 'entrada' },
+  { title: 'Dar acceso a TikTok Ads (TikTok Business Center)', department: 'cliente', priority: 'alta', phase: 'entrada' },
+  { title: 'Asistir a la sesión de grabación en el restaurante', department: 'cliente', priority: 'alta', phase: 'produccion_video' },
+  { title: 'Revisar y aprobar anuncios y campañas', department: 'cliente', priority: 'alta', phase: 'revision' },
+  // ── Líder (ScrumMaster) ──
+  { title: 'Crear grupo de WhatsApp con cliente y equipo', department: 'lider', priority: 'alta', phase: 'entrada' },
+  { title: 'Enviar el brief del restaurante al cliente', department: 'lider', priority: 'alta', phase: 'entrada' },
+  { title: 'Agendar reunión de kickoff con cliente y equipo', department: 'lider', priority: 'alta', phase: 'entrada' },
+  { title: 'Recolección de accesos (Meta, Google Ads y TikTok Ads)', department: 'lider', priority: 'alta', phase: 'entrada' },
+  { title: 'Validar guiones y copys de anuncios', department: 'lider', priority: 'alta', phase: 'guiones' },
+  { title: 'Agendar sesión de grabación en el restaurante', department: 'lider', priority: 'alta', phase: 'produccion_video' },
+  { title: 'Revisar anuncios y campañas antes de enviarlos al cliente', department: 'lider', priority: 'alta', phase: 'revision' },
+  { title: 'Enviar anuncios y campañas al cliente para aprobación', department: 'lider', priority: 'alta', phase: 'revision' },
+  // ── Copy ──
+  { title: 'Investigar competencia y zona (IG, TikTok, Google Maps)', department: 'copy', priority: 'alta', phase: 'estrategia' },
+  { title: 'Escribir guiones para anuncios de video (Meta y TikTok)', department: 'copy', priority: 'alta', phase: 'guiones' },
+  { title: 'Escribir copys para anuncios (Meta, Google Ads y TikTok)', department: 'copy', priority: 'alta', phase: 'guiones' },
+  // ── Diseño — anuncios estáticos ──
+  { title: 'Diseñar anuncios estáticos (platillos y promociones)', department: 'diseno', priority: 'alta', group: 'diseno_ads', phase: 'produccion_video' },
+  { title: 'Diseñar carruseles para Meta Ads', department: 'diseno', priority: 'media', group: 'diseno_ads', phase: 'produccion_video' },
+  // ── Edición — anuncios ──
+  { title: 'Editar anuncios de video — ronda 1', department: 'edicion', priority: 'alta', group: 'edicion_video', phase: 'produccion_video' },
+  { title: 'Editar anuncios de video — ronda 2 (ajustes)', department: 'edicion', priority: 'alta', group: 'edicion_video', phase: 'produccion_video' },
+  { title: 'Adaptar anuncios a formato vertical y cuadrado (Reels, TikTok, Stories)', department: 'edicion', priority: 'media', group: 'edicion_video', phase: 'produccion_video' },
+  // ── Trafficker ──
+  { title: 'Revisar cuenta publicitaria y BM', department: 'trafficker', priority: 'alta', phase: 'entrada' },
+  { title: 'Configurar seguimiento de conversiones (WhatsApp, llamadas y cómo llegar)', department: 'trafficker', priority: 'alta', phase: 'entrada' },
+  { title: 'Definir estrategia de campañas (ofertas, públicos, zona y presupuesto por plataforma)', department: 'trafficker', priority: 'alta', phase: 'estrategia' },
+  { title: 'Crear y publicar campañas en Meta Ads', department: 'trafficker', priority: 'alta', phase: 'lanzamiento' },
+  { title: 'Crear y publicar campañas en Google Ads', department: 'trafficker', priority: 'alta', phase: 'lanzamiento' },
+  { title: 'Crear y publicar campañas en TikTok Ads', department: 'trafficker', priority: 'alta', phase: 'lanzamiento' },
+  { title: 'Optimización semanal de campañas (Meta, Google Ads y TikTok)', department: 'trafficker', priority: 'alta', phase: 'optimizacion' },
+  { title: 'Enviar reporte semanal de resultados al cliente', department: 'trafficker', priority: 'media', phase: 'optimizacion' },
+  // ── Grabación (Producción) ──
+  { title: 'Grabar anuncios en el restaurante (platillos, ambiente y testimonios)', department: 'grabacion', priority: 'alta', phase: 'produccion_video' },
+  { title: 'Encarpetar', department: 'grabacion', priority: 'media', phase: 'produccion_video' },
+]
+
 // Tareas de grabación/cliente que dependen de la modalidad elegida al crear el proyecto.
 // En oficina, Grabación es la responsable de grabar y el cliente solo asiste a la sesión.
 // En remota, el cliente es el responsable de grabar y compartir, y Grabación solo apoya.
@@ -196,6 +242,12 @@ export function tasksForModalidad(modalidad: Modalidad): TemplateTask[] {
 const TITLE_PHASE_MAP = new Map<string, Phase>()
 ;[...baseTasks, ...soloWebinarTasks, ...modalidadTasks].forEach(task => {
   TITLE_PHASE_MAP.set(task.title.trim().toLocaleLowerCase('es-MX'), task.phase)
+})
+
+// Restaurante: solo agrega sus títulos nuevos (los compartidos, como "Encarpetar", ya tienen la misma fase).
+restauranteTasks.forEach(task => {
+  const key = task.title.trim().toLocaleLowerCase('es-MX')
+  if (!TITLE_PHASE_MAP.has(key)) TITLE_PHASE_MAP.set(key, task.phase)
 })
 
 const DEPARTMENT_FALLBACK_PHASE: Record<Department, Phase> = {
@@ -232,6 +284,13 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     icon: '📡',
     description: 'Embudo Webinar — incluye presentación del webinar y video de edificación',
     tasks: webinarTasks,
+  },
+  {
+    id: 'restaurante',
+    name: 'Restaurante',
+    icon: '🍽️',
+    description: 'Solo anuncios pagados en Meta, Google Ads y TikTok — sin páginas web ni VSL',
+    tasks: restauranteTasks,
   },
   {
     id: 'otro',
@@ -302,3 +361,31 @@ export const TEMPLATE_GROUP_ORDER: string[] = [
   'edicion_video', 'edicion_presentacion',
   'trafficker', 'grabacion',
 ]
+
+// ── Tipo de embudo (projects.funnel_type) sugerido al elegir una plantilla ──
+export type TemplateFunnelType = 'low2funnel' | 'vsl_high_ticket' | 'high_ticket' | 'restaurante' | 'webinar' | 'otro'
+
+const BUILT_IN_FUNNEL_TYPE: Record<string, TemplateFunnelType> = {
+  vsl: 'vsl_high_ticket',
+  webinar: 'webinar',
+  restaurante: 'restaurante',
+  otro: 'otro',
+}
+
+/** Plantillas que vienen en el código (sus filas en project_templates solo las editan o archivan). */
+export const BUILT_IN_TEMPLATE_IDS = PROJECT_TEMPLATES.map(template => template.id)
+
+/**
+ * Tipo de embudo sugerido para una plantilla: las del código tienen uno fijo; para los embudos
+ * personalizados se deduce del nombre (p. ej. "Low ticket" → low2funnel). '' si no se sabe.
+ */
+export function funnelTypeForTemplate(templateId: string, templateName = ''): TemplateFunnelType | '' {
+  if (BUILT_IN_FUNNEL_TYPE[templateId]) return BUILT_IN_FUNNEL_TYPE[templateId]
+  const text = `${templateId} ${templateName}`.toLocaleLowerCase('es-MX')
+  if (/low\s*-?\s*(2|to|two)?\s*-?\s*funnel|low\s*-?\s*ticket|lowticket/.test(text)) return 'low2funnel'
+  if (/high\s*-?\s*ticket|highticket/.test(text)) return /\bvsl\b/.test(text) ? 'vsl_high_ticket' : 'high_ticket'
+  if (/restaur/.test(text)) return 'restaurante'
+  if (/webinar/.test(text)) return 'webinar'
+  if (/\bvsl\b/.test(text)) return 'vsl_high_ticket'
+  return ''
+}

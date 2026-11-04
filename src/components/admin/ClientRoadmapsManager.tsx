@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronDown, Filter, Map as MapIcon, Search } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { isDateKeyOverdue } from '../../lib/dates'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Project, Task, User } from '../../types'
 import {
@@ -145,7 +146,7 @@ export default function ClientRoadmapsManager({ restricted = false, initialClien
     const health = projectHealth(projectTasks, project, events)
     const phase = currentDisplayPhase(projectTasks)
     const pendingClient = projectTasks.filter(task => task.department === 'cliente' && task.status !== 'completada')
-    const overdueClient = pendingClient.filter(task => task.commitment_date && new Date(task.commitment_date) < new Date())
+    const overdueClient = pendingClient.filter(task => isDateKeyOverdue(task.commitment_date))
     const lider = projectTasks.find(task => task.department === 'lider')?.assignee?.full_name
     return { project, health, phase, pendingClient, overdueClient, lider, tasks: projectTasks }
   }), [activeProjects, tasks, delayEvents])

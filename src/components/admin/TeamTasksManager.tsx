@@ -11,6 +11,14 @@ import UserAvatar from '../shared/UserAvatar'
 import TaskDetailModal from '../team/TaskDetailModal'
 import EditTaskModal from './EditTaskModal'
 import ArchiveTaskModal from './ArchiveTaskModal'
+import DeleteTaskModal from './DeleteTaskModal'
+import { canChangeProjectStatus, canDeleteTasks, taskDeletedNotice } from '../../lib/projectStatus'
+import BulkTaskActionModal from './BulkTaskActionModal'
+import TaskSelectionBar, { TaskCheckbox } from './TaskSelectionBar'
+import { InlineSelectCell } from './InlineTaskCell'
+import { canBulkQuickComplete } from '../../lib/quickComplete'
+import { INLINE_PRIORITIES, activeAssignableMembers, addOverride, applyOverrides, buildInlineChange, canInlineEditTask, inlineErrorNotice, inlineFieldLocked, optimisticPatch, removeOverride, type InlineField, type TaskOverrides } from '../../lib/inlineTaskEdit'
+import { bulkResultNotice, selectAllState, toggleSelectAll, toggleSelected, visibleSelection, type BulkResult, type BulkTaskAction, type BulkTaskRef } from '../../lib/taskSelection'
 
 interface Props {
   teamMembers: User[]
@@ -58,7 +66,16 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
   const [archivedLoading, setArchivedLoading] = useState(false)
   const [archivedError, setArchivedError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
+  // Eliminar para siempre una tarea activa (sin archivar antes): solo el super admin.
+  const canDeleteTask = canDeleteTasks(user)
+  const [superDeleteTask, setSuperDeleteTask] = useState<Task | null>(null)
+  const [deleteNotice, setDeleteNotice] = useState('')
   const [deleteInput, setDeleteInput] = useState('')
+  // Selección múltiple (casilla junto al nombre) para archivar / eliminar varias de una.
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+  const [bulkAction, setBulkAction] = useState<{ action: BulkTaskAction; tasks: BulkTaskRef[] } | null>(null)
+  // Edición en línea en las tarjetas (persona asignada y prioridad): cambios optimistas.
+  const [taskOverrides, setTaskOverrides] = useState<TaskOverrides>({})
 
   async function fetchArchivedTasks() {
     if (!isAdmin) return
@@ -156,7 +173,27 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
 
   const members = useMemo(() => eligibleMembers, [eligibleMembers])
   const visibleMembers = members.filter((member) => member.full_name.toLowerCase().includes(memberSearch.toLowerCase()))
-  const memberTasks = selectedMemberId === 'all' ? tasks : tasks.filter((task) => task.assigned_to === selectedMemberId)
+  const assignableMembers = activeAssignableMembers(eligibleMembers)
+  const displayTasks = applyOverrides(tasks, taskOverrides)
+
+  /** Guarda en línea con la misma RPC que el lápiz (admin_update_task: notifica reasignaciones). */
+  async function saveInline(task: Task, field: InlineField, rawValue: string) {
+    if (!canInlineEditTask(user, task) || inlineFieldLocked(task, field)) return
+    const changes = buildInlineChange(task, field, rawValue)
+    if (!changes) return
+    const patch = optimisticPatch(changes, assignableMembers)
+    setTaskOverrides(prev => addOverride(prev, task.id, patch))
+    const { error: rpcError } = await supabase.rpc('admin_update_task', { p_task_id: task.id, p_changes: changes })
+    if (rpcError) {
+      setTaskOverrides(prev => removeOverride(prev, task.id, patch))
+      setDeleteNotice(inlineErrorNotice(field, friendlyTaskError(rpcError.message)))
+      return
+    }
+    await onTasksChange()
+    setTaskOverrides(prev => removeOverride(prev, task.id, patch))
+  }
+
+  const memberTasks = selectedMemberId === 'all' ? displayTasks : displayTasks.filter((task) => task.assigned_to === selectedMemberId)
   const filteredTasks = memberTasks
     .filter((task) => {
       if (statusFilter === 'todas') return true
@@ -173,6 +210,27 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
       if (a.status !== 'completada' && b.status === 'completada') return -1
       return (a.commitment_date || '9999-12-31').localeCompare(b.commitment_date || '9999-12-31')
     })
+
+  // Solo cuentan las seleccionadas que siguen visibles con la persona, el estado y la búsqueda.
+  const visibleTaskIds = filteredTasks.map(task => task.id)
+  const selectedVisibleIds = visibleSelection(selectedTaskIds, visibleTaskIds)
+  const allState = selectAllState(selectedTaskIds, visibleTaskIds)
+  const isSelected = (task: Task) => selectedVisibleIds.includes(task.id)
+
+  function openBulk(action: BulkTaskAction) {
+    const chosen = filteredTasks.filter(isSelected).map(task => ({ id: task.id, title: task.title, department: task.department, status: task.status, assigned_to: task.assigned_to, needed_date: task.needed_date || null }))
+    if (!chosen.length) return
+    setBulkAction({ action, tasks: chosen })
+  }
+
+  function handleBulkDone(result: BulkResult) {
+    setBulkAction(null)
+    // Las que fallaron se quedan seleccionadas para reintentar; las demás se limpian.
+    setSelectedTaskIds(result.failed.map(item => item.id))
+    setDeleteNotice(bulkResultNotice(result))
+    if (result.action === 'archivar') void fetchArchivedTasks()
+    void onTasksChange()
+  }
 
   const activeCount = memberTasks.filter((task) => task.status !== 'completada').length
   const completedCount = memberTasks.filter((task) => task.status === 'completada').length
@@ -317,13 +375,13 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
           <div className="hidden overflow-hidden rounded-xl border border-gray-200">
             <table className="w-full table-fixed text-left text-sm">
               <colgroup><col className="w-[24%]" /><col className="w-[17%]" /><col className="w-[11%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[14%]" /><col className="w-[12%]" /></colgroup>
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-3">Tarea</th><th className="px-4 py-3">Integrante</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Prioridad</th><th className="px-4 py-3">Entrega</th><th className="px-4 py-3">Comentarios</th><th className="px-4 py-3 text-right">Acciones</th></tr></thead>
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-3">{isAdmin && <span className="mr-2 inline-block align-middle"><TaskCheckbox state={allState} onToggle={() => setSelectedTaskIds(prev => toggleSelectAll(prev, visibleTaskIds))} label={allState === 'all' ? 'Quitar selección de todas' : 'Seleccionar todas las tareas visibles'} /></span>}Tarea</th><th className="px-4 py-3">Integrante</th><th className="px-4 py-3">Estado</th><th className="px-4 py-3">Prioridad</th><th className="px-4 py-3">Entrega</th><th className="px-4 py-3">Comentarios</th><th className="px-4 py-3 text-right">Acciones</th></tr></thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredTasks.map((task) => {
                   const taskComments = commentsByTask.get(task.id) || []
                   const latestComment = taskComments[0]
-                  return <tr key={task.id} className="hover:bg-blue-50/30">
-                  <td className="px-4 py-3"><button type="button" onClick={() => setSelectedTask(task)} className="max-w-[300px] text-left"><b className="block truncate text-gray-900 hover:text-blue-600">{task.title}</b><small className="block truncate text-gray-500">{task.project?.client?.name || 'Sin cliente'} · {task.project?.name || 'Sin proyecto'}</small></button></td>
+                  return <tr key={task.id} className={`hover:bg-blue-50/30 ${isSelected(task) ? 'bg-blue-50/70' : ''}`}>
+                  <td className="px-4 py-3"><div className="flex items-start gap-2">{isAdmin && <span className="pt-0.5"><TaskCheckbox state={isSelected(task)} onToggle={() => setSelectedTaskIds(prev => toggleSelected(prev, task.id))} label={`Seleccionar tarea ${task.title}`} /></span>}<button type="button" onClick={() => setSelectedTask(task)} className="min-w-0 max-w-[300px] text-left"><b className="block truncate text-gray-900 hover:text-blue-600">{task.title}</b><small className="block truncate text-gray-500">{task.project?.client?.name || 'Sin cliente'} · {task.project?.name || 'Sin proyecto'}</small></button></div></td>
                   <td className="px-4 py-3"><div className="flex items-center gap-2"><UserAvatar name={task.assignee?.full_name || 'Sin asignar'} avatarUrl={task.assignee?.avatar_url} size={28} /><span className="max-w-[145px] truncate">{task.assignee?.full_name || 'Sin asignar'}</span></div></td>
                   <td className="px-4 py-3"><StatusBadge status={task.status} /></td><td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
                   <td className="whitespace-nowrap px-4 py-3 text-gray-600">{task.commitment_date ? new Date(`${task.commitment_date}T00:00:00`).toLocaleDateString('es-MX') : 'Sin fecha'}</td>
@@ -333,32 +391,65 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
                       <span className="min-w-0"><span className="block truncate text-xs font-semibold text-gray-700 group-hover:text-blue-600">{latestComment.user?.full_name || 'Usuario'} · {taskComments.length}</span><span className="block truncate text-xs text-gray-500">{latestComment.content}</span></span>
                     </button> : <span className="text-xs text-gray-400">Sin comentarios</span>}
                   </td>
-                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}</div></td>
+                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Eliminar tarea para siempre" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div></td>
                 </tr>})}
               </tbody>
             </table>
             {!filteredTasks.length && <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center text-gray-400"><ClipboardList size={42} className="mb-3 text-gray-300" /><b className="text-gray-600">No hay tareas con estos filtros</b><span className="mt-1 text-sm">Prueba otra persona, estado o búsqueda.</span></div>}
           </div>
 
+          {isAdmin && filteredTasks.length > 0 && (
+            <div className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <label className="flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm text-gray-600">
+                <TaskCheckbox state={allState} onToggle={() => setSelectedTaskIds(prev => toggleSelectAll(prev, visibleTaskIds))} label={allState === 'all' ? 'Quitar selección de todas' : 'Seleccionar todas las tareas visibles'} />
+                <span>{allState === 'all' ? 'Quitar selección' : `Seleccionar todas (${filteredTasks.length})`}</span>
+              </label>
+              <TaskSelectionBar
+                count={selectedVisibleIds.length}
+                canArchive={isAdmin}
+                canDelete={canDeleteTask}
+                onArchive={() => openBulk('archivar')}
+                onDelete={() => openBulk('eliminar')}
+                onClear={() => setSelectedTaskIds([])}
+                canComplete={canBulkQuickComplete(user)}
+                onComplete={() => openBulk('completar')}
+                canEdit={isAdmin}
+                onReassign={() => openBulk('reasignar')}
+                onSetNeeded={() => openBulk('necesito')}
+              />
+            </div>
+          )}
+
           <div className="grid gap-3 xl:grid-cols-2">
             {filteredTasks.map(task => {
               const taskComments = commentsByTask.get(task.id) || []
               const latestComment = taskComments[0]
-              return <article key={task.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <button type="button" onClick={() => setSelectedTask(task)} className="w-full text-left">
-                  <b className="block text-sm text-gray-900">{task.title}</b>
-                  <small className="mt-1 block text-gray-500">{task.project?.client?.name || 'Sin cliente'} · {task.project?.name || 'Sin proyecto'}</small>
-                </button>
+              return <article key={task.id} className={`rounded-xl border bg-white p-4 shadow-sm ${isSelected(task) ? 'border-blue-400 ring-1 ring-blue-200' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-3">
+                  {isAdmin && <span className="pt-0.5"><TaskCheckbox state={isSelected(task)} onToggle={() => setSelectedTaskIds(prev => toggleSelected(prev, task.id))} label={`Seleccionar tarea ${task.title}`} /></span>}
+                  <button type="button" onClick={() => setSelectedTask(task)} className="min-w-0 flex-1 text-left">
+                    <b className="block text-sm text-gray-900">{task.title}</b>
+                    <small className="mt-1 block text-gray-500">{task.project?.client?.name || 'Sin cliente'} · {task.project?.name || 'Sin proyecto'}</small>
+                  </button>
+                </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className="mr-auto flex min-w-0 items-center gap-2"><UserAvatar name={task.assignee?.full_name || 'Sin asignar'} avatarUrl={task.assignee?.avatar_url} size={28} /><span className="truncate text-sm">{task.assignee?.full_name || 'Sin asignar'}</span></div>
+                  <div className="mr-auto flex min-w-0 items-center gap-2"><UserAvatar name={task.assignee?.full_name || 'Sin asignar'} avatarUrl={task.assignee?.avatar_url} size={28} />{canInlineEditTask(user, task) && !inlineFieldLocked(task, 'assigned_to')
+                    ? <InlineSelectCell label={`persona asignada de ${task.title}`} value={task.assigned_to || ''} placeholder="Selecciona persona"
+                        display={<span className="truncate text-sm">{task.assignee?.full_name || 'Sin asignar'}</span>}
+                        options={assignableMembers.map(m => ({ value: m.id, label: `${m.full_name}${m.id === user?.id ? ' (yo)' : ''}` }))}
+                        onSave={value => { void saveInline(task, 'assigned_to', value) }} />
+                    : <span className="truncate text-sm">{task.assignee?.full_name || 'Sin asignar'}</span>}</div>
                   <StatusBadge status={task.status} />
-                  <PriorityBadge priority={task.priority} />
+                  {canInlineEditTask(user, task)
+                    ? <InlineSelectCell label={`prioridad de ${task.title}`} value={task.priority} display={<PriorityBadge priority={task.priority} />}
+                        options={INLINE_PRIORITIES} onSave={value => { void saveInline(task, 'priority', value) }} />
+                    : <PriorityBadge priority={task.priority} />}
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-gray-500 sm:grid-cols-2">
                   <span><b className="text-gray-600">Entrega:</b> {task.commitment_date ? new Date(`${task.commitment_date}T00:00:00`).toLocaleDateString('es-MX') : 'Sin fecha'}</span>
                   <button type="button" onClick={() => setSelectedTask(task)} className="truncate text-left hover:text-blue-600"><b className="text-gray-600">Comentarios:</b> {latestComment ? `${latestComment.user?.full_name || 'Usuario'} · ${taskComments.length} — ${latestComment.content}` : 'Sin comentarios'}</button>
                 </div>
-                <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-3"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}</div>
+                <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-3"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Eliminar tarea para siempre" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div>
               </article>
             })}
             {!filteredTasks.length && <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-gray-200 p-8 text-center text-gray-400"><ClipboardList size={42} className="mb-3 text-gray-300" /><b className="text-gray-600">No hay tareas con estos filtros</b><span className="mt-1 text-sm">Prueba otra persona, estado o búsqueda.</span></div>}
@@ -369,6 +460,18 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
 
       {selectedTask && <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onUpdate={async () => { setSelectedTask(null); await onTasksChange() }} />}
       {editingTask && <EditTaskModal task={editingTask} onClose={() => setEditingTask(null)} onSaved={handleTaskSaved} />}
+      {superDeleteTask && canDeleteTask && (
+        <DeleteTaskModal task={superDeleteTask} onClose={() => setSuperDeleteTask(null)} onDeleted={title => { setSuperDeleteTask(null); setDeleteNotice(taskDeletedNotice(title)); void onTasksChange() }} />
+      )}
+      {deleteNotice && (
+        <div role="status" className="fixed bottom-6 right-6 z-[90] flex max-w-sm items-start gap-3 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-2xl">
+          <span>{deleteNotice}</span>
+          <button type="button" aria-label="Cerrar aviso" onClick={() => setDeleteNotice('')} className="text-gray-300 hover:text-white">×</button>
+        </div>
+      )}
+      {bulkAction && isAdmin && (bulkAction.action === 'archivar' || bulkAction.action === 'reasignar' || bulkAction.action === 'necesito' || (bulkAction.action === 'eliminar' && canDeleteTask) || (bulkAction.action === 'completar' && canBulkQuickComplete(user))) && (
+        <BulkTaskActionModal action={bulkAction.action} tasks={bulkAction.tasks} members={assignableMembers} canEditCompleted={canChangeProjectStatus(user)} onClose={() => setBulkAction(null)} onDone={handleBulkDone} />
+      )}
       {archivingTask && <ArchiveTaskModal task={archivingTask} onClose={() => setArchivingTask(null)} onArchived={handleTaskArchived} />}
 
       {deleteTarget && (

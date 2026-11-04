@@ -57,6 +57,13 @@ function harness(file, initial, replies = [], auth = {}, props = {}) {
       if (id === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }
       if (id.endsWith('/supabase')) return { supabase: database }
       if (id.endsWith('/AuthContext')) return { useAuth: () => ({ user, ...auth }) }
+      if (id.endsWith('/projectStatus')) return loadModule('src/lib/projectStatus.ts')
+      if (id.endsWith('/adminTasks')) return loadModule('src/lib/adminTasks.ts')
+      if (id.endsWith('/taskDelays')) return loadModule('src/lib/taskDelays.ts')
+      if (id.endsWith('/lib/dates')) return loadModule('src/lib/dates.ts')
+      if (id.endsWith('/taskSelection')) return loadModule('src/lib/taskSelection.ts')
+      if (id.endsWith('/inlineTaskEdit')) return loadModule('src/lib/inlineTaskEdit.ts')
+      if (id.endsWith('/quickComplete')) return loadModule('src/lib/quickComplete.ts')
       if (id.endsWith('/workSchedule')) return { scheduleForDate: () => ({ enabled: true, start: 9, end: 0 }), nowInCdmx: () => new Date(), cdmxDateKey: () => '2026-01-01' }
       return {}
     },
@@ -442,6 +449,7 @@ const projectFile = 'src/components/admin/ProjectDetail.tsx'
 function buttonText(node, text) {
   return node.type === 'button' && [node.props.children].flat().includes(text)
 }
+const superAdminAuth = { user: { id: 'tony', role: 'admin', is_super_admin: true, active: true } }
 function openProjectMenu(h) {
   find(h.render(), node => node.props?.['aria-label'] === 'Opciones del proyecto').props.onClick()
 }
@@ -455,7 +463,7 @@ test('Project actions menu opens the inline editor', () => {
 })
 
 test('Project deletion uses an application modal and cancel makes no database calls', async () => {
-  const h = harness(projectFile, [], [], {}, projectProps)
+  const h = harness(projectFile, [], [], superAdminAuth, projectProps)
   openProjectMenu(h)
   find(h.render(), node => buttonText(node, ' Eliminar proyecto')).props.onClick()
   const modal = find(h.render(), node => node.props?.role === 'dialog')
@@ -473,7 +481,7 @@ for (const [label, reply, success] of [
   ['missing confirmation', { data: null }, false],
 ]) test(`Project deletion ${label}`, async () => {
   let navigated = false, refreshed = false
-  const h = harness(projectFile, [], [reply], {}, {
+  const h = harness(projectFile, [], [reply], superAdminAuth, {
     ...projectProps, onBack() { navigated = true }, onUpdate() { refreshed = true },
   })
   openProjectMenu(h)
@@ -510,6 +518,8 @@ function loadModule(file) {
     if (id.endsWith('/types')) return {}
     if (id.endsWith('/projectTemplates')) return loadModule('src/data/projectTemplates.ts')
     if (id.endsWith('/roadmapPhases')) return loadModule('src/lib/roadmapPhases.ts')
+    if (id.endsWith('/dates')) return loadModule('src/lib/dates.ts')
+    if (id.endsWith('/projectStatus')) return loadModule('src/lib/projectStatus.ts')
     return {}
   } })
   return exported
@@ -955,10 +965,10 @@ test('isPastDate and isAfterLaunch compare date keys as strings', () => {
   assert.equal(missingDates.isAfterLaunch('2026-11-05', null), false)
 })
 
-test('shouldShowMissingDatesModal: only for team, with an open session, outside the check-in gate, with pending missions, and not skipped today', () => {
+test('shouldShowMissingDatesModal: for team and admins (never clients), with an open session, outside the check-in gate, with pending missions, and not skipped today', () => {
   const base = { role: 'team', hasSessionToday: true, checkInGateOpen: false, skippedOn: null, todayKey: '2026-10-23', count: 3 }
   assert.equal(missingDates.shouldShowMissingDatesModal(base), true)
-  assert.equal(missingDates.shouldShowMissingDatesModal({ ...base, role: 'admin' }), false)
+  assert.equal(missingDates.shouldShowMissingDatesModal({ ...base, role: 'admin' }), true, 'admins y super admin también')
   assert.equal(missingDates.shouldShowMissingDatesModal({ ...base, role: 'client' }), false)
   assert.equal(missingDates.shouldShowMissingDatesModal({ ...base, hasSessionToday: false }), false)
   assert.equal(missingDates.shouldShowMissingDatesModal({ ...base, checkInGateOpen: true }), false)
@@ -983,9 +993,12 @@ test('countUndatedByAssignee tallies pending missions per person, excluding clie
   assert.equal(counts.get('user-4'), undefined)
 })
 
-test('MissingDatesModal is mounted only for the team role and never for admin/client', () => {
+test('MissingDatesModal is mounted for team and admins (their own undated tasks) and never for clients', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src/App.tsx'), 'utf8')
-  assert.match(source, /user\.role === 'team' && <MissingDatesModal \/>/)
+  assert.match(source, /user\.role !== 'client' && <MissingDatesModal \/>/)
+  const modal = fs.readFileSync(path.join(__dirname, '..', 'src/components/shared/MissingDatesModal.tsx'), 'utf8')
+  assert.match(modal, /user\.role === 'client' \|\| !currentSession/)
+  assert.match(modal, /\.eq\('assigned_to', user\.id\)/)
 })
 
 test('TeamTasksManager shows an undated-missions count per person and a team total', () => {
@@ -993,4 +1006,588 @@ test('TeamTasksManager shows an undated-missions count per person and a team tot
   assert.match(source, /countUndatedByAssignee/)
   assert.match(source, /Sin fecha: \$\{undated\}/)
   assert.match(source, /sin fecha en el equipo/)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Estado del proyecto: solo el super admin (Activo / Pausado / Finalizado)
+// ─────────────────────────────────────────────────────────────────────────
+
+const isStatusToggle = node => node.type === 'button' && /^Estado del proyecto/.test(node.props?.['aria-label'] || '')
+
+test('Un admin normal ve el estado del proyecto pero no puede cambiarlo', () => {
+  const h = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, projectProps)
+  assert.equal(find(h.render(), isStatusToggle), undefined)
+  assert.ok(find(h.render(), node => node.type === 'span' && node.props?.title === 'Solo el super admin puede cambiar el estado'))
+})
+
+const findButtonWith = (root, text) => find(root, node => node.type === 'button' && JSON.stringify(node.props?.children || '').includes(text))
+
+const finalizeRows = [
+  { id: 't1', status: 'pendiente', review_status: null, archived_at: null },
+  { id: 't2', status: 'en_progreso', review_status: 'cambios_solicitados', archived_at: null },
+  { id: 't3', status: 'completada', review_status: 'aprobada', archived_at: null },
+  { id: 't4', status: 'en_progreso', review_status: 'pendiente_revision', archived_at: null },
+  { id: 't5', status: 'bloqueada', review_status: null, archived_at: '2026-11-01T00:00:00Z' },
+]
+async function openFinalizeDialog(h) {
+  find(h.render(), isStatusToggle).props.onClick()
+  await findButtonWith(h.render(), '"Finalizado"').props.onClick()
+  await flush()
+  return find(h.render(), node => node.props?.role === 'dialog')
+}
+
+test('Finalizar muestra cuántas pendientes hay y deja elegir; Archivar llama finalize_project', async () => {
+  let refreshed = false
+  const h = harness(projectFile, [], [{ data: finalizeRows, error: null }, { data: 2, error: null }], superAdminAuth, { ...projectProps, onUpdate() { refreshed = true } })
+  const dialog = await openFinalizeDialog(h)
+  assert.equal(h.calls.filter(call => call.rpc).length, 0, 'nada cambia antes de elegir')
+  assert.match(JSON.stringify(dialog), /tiene 2 tareas pendientes \(y 1 pendiente ya archivada\)/)
+  assert.ok(findButtonWith(dialog, 'Eliminar para siempre'))
+  assert.ok(findButtonWith(dialog, 'Cancelar'))
+  await findButtonWith(dialog, 'Archivar (se pueden recuperar)').props.onClick()
+  await flush()
+  const rpc = h.calls.find(call => call.rpc)
+  assert.equal(rpc.rpc, 'finalize_project')
+  assert.equal(JSON.stringify(rpc.args), JSON.stringify({ p_project_id: 'project-1', p_mode: 'archivar' }))
+  assert.equal(h.calls.filter(call => call.table === 'projects').length, 0, 'el estado lo cambia la RPC')
+  assert.equal(refreshed, true)
+  assert.equal(find(h.render(), node => node.props?.role === 'dialog'), undefined)
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /Se archivaron 2 tareas pendientes/)
+})
+
+test('Eliminar para siempre pide una segunda confirmación con el total', async () => {
+  const h = harness(projectFile, [], [{ data: finalizeRows, error: null }, { data: 3, error: null }], superAdminAuth, projectProps)
+  const dialog = await openFinalizeDialog(h)
+  findButtonWith(dialog, 'Eliminar para siempre').props.onClick()
+  const confirm = find(h.render(), node => node.props?.role === 'dialog')
+  assert.match(JSON.stringify(confirm), /Se eliminarán para siempre 3 tareas/)
+  assert.equal(h.calls.filter(call => call.rpc).length, 0, 'todavía no elimina')
+  await findButtonWith(confirm, 'Sí, eliminar 3 para siempre').props.onClick()
+  await flush()
+  assert.equal(JSON.stringify(h.calls.find(call => call.rpc).args), JSON.stringify({ p_project_id: 'project-1', p_mode: 'borrar' }))
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /Se eliminaron para siempre 3 tareas pendientes/)
+})
+
+test('Cancelar la elección de Finalizado no cambia nada', async () => {
+  const h = harness(projectFile, [], [{ data: finalizeRows, error: null }], superAdminAuth, projectProps)
+  const dialog = await openFinalizeDialog(h)
+  findButtonWith(dialog, 'Cancelar').props.onClick()
+  assert.equal(find(h.render(), node => node.props?.role === 'dialog'), undefined)
+  assert.equal(h.calls.filter(call => call.rpc || call.table === 'projects').length, 0)
+})
+
+test('Si falta el SQL (no existe finalize_project), se avisa y no cambia el estado', async () => {
+  const h = harness(projectFile, [], [{ data: finalizeRows, error: null }, { data: null, error: { message: 'Could not find the function public.finalize_project(p_mode, p_project_id) in the schema cache' } }], superAdminAuth, projectProps)
+  const dialog = await openFinalizeDialog(h)
+  await findButtonWith(dialog, 'Archivar (se pueden recuperar)').props.onClick()
+  await flush()
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'alert')), /finalizar_elegir\.sql/)
+  assert.ok(find(h.render(), node => node.props?.role === 'dialog'), 'el diálogo sigue abierto')
+})
+
+test('Reactivar un proyecto finalizado avisa cuántas tareas se restauraron', async () => {
+  const finalized = { ...projectProps, project: { ...projectProps.project, status: 'completado' } }
+  const h = harness(projectFile, [], [{ count: 4, error: null }, { data: { id: 'project-1' }, error: null }, { count: 0, error: null }], superAdminAuth, finalized)
+  find(h.render(), isStatusToggle).props.onClick()
+  await findButtonWith(h.render(), '"Activo"').props.onClick()
+  await flush(30)
+  assert.match(JSON.stringify(h.calls.find(call => call.table === 'projects').operations), /"status":"activo"/)
+  assert.match(JSON.stringify(h.calls.find(call => call.table === 'tasks').operations), /"archived_via","proyecto_finalizado"/)
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /Se restauraron 4 tareas/)
+})
+
+test('Pasar de Activo a Pausado no abre diálogo ni cuenta tareas', async () => {
+  const h = harness(projectFile, [], [{ data: { id: 'project-1' }, error: null }], superAdminAuth, projectProps)
+  find(h.render(), isStatusToggle).props.onClick()
+  await findButtonWith(h.render(), '"Pausado"').props.onClick()
+  await flush()
+  assert.equal(h.calls.length, 1)
+  assert.equal(find(h.render(), node => node.props?.role === 'dialog'), undefined)
+})
+
+test('Solo el super admin ve "Eliminar proyecto"', () => {
+  for (const user of [{ id: 'admin-1', role: 'admin', is_super_admin: false }, { id: 'sa-off', role: 'admin', is_super_admin: true, active: false }, { id: 'team-1', role: 'team' }]) {
+    const h = harness(projectFile, [], [], { user }, projectProps)
+    openProjectMenu(h)
+    assert.ok(find(h.render(), node => buttonText(node, ' Editar proyecto')), 'editar sigue disponible')
+    assert.equal(find(h.render(), node => buttonText(node, ' Eliminar proyecto')), undefined, `oculto para ${user.id}`)
+  }
+  const h = harness(projectFile, [], [], superAdminAuth, projectProps)
+  openProjectMenu(h)
+  assert.ok(find(h.render(), node => buttonText(node, ' Eliminar proyecto')))
+})
+
+test('Si la base rechaza el borrado por no ser super admin, se explica', async () => {
+  const h = harness(projectFile, [], [{ error: { message: 'Solo el super admin puede eliminar proyectos' } }], superAdminAuth, projectProps)
+  openProjectMenu(h)
+  find(h.render(), node => buttonText(node, ' Eliminar proyecto')).props.onClick()
+  await find(find(h.render(), node => node.props?.role === 'dialog'), node => buttonText(node, 'Sí, eliminar proyecto')).props.onClick()
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'alert')), /Solo el super admin puede eliminar proyectos/)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Eliminar una tarea para siempre (bote junto a archivar): solo el super admin
+// ─────────────────────────────────────────────────────────────────────────
+
+const rowTask = { id: 'task-9', title: 'Guion anuncio 3', status: 'pendiente', priority: 'media', department: 'copy', project_id: 'project-1' }
+const isTrash = node => node.type === 'button' && node.props?.title === 'Eliminar tarea para siempre'
+
+test('El bote de basura junto a archivar solo aparece para el super admin', () => {
+  const props = { ...projectProps, tasks: [rowTask] }
+  for (const user of [{ id: 'admin-1', role: 'admin', is_super_admin: false }, { id: 'sa-off', role: 'admin', is_super_admin: true, active: false }]) {
+    const h = harness(projectFile, [], [], { user }, props)
+    assert.ok(find(h.render(), node => node.type === 'button' && node.props?.title === 'Archivar tarea'), 'archivar sigue')
+    assert.equal(find(h.render(), isTrash), undefined, `sin bote para ${user.id}`)
+  }
+  const h = harness(projectFile, [], [], superAdminAuth, props)
+  const trash = find(h.render(), isTrash)
+  assert.ok(trash)
+  trash.props.onClick()
+  const modal = find(h.render(), node => node.props?.task?.id === 'task-9' && typeof node.props?.onDeleted === 'function')
+  assert.ok(modal, 'abre el diálogo de eliminar con la tarea')
+})
+
+const deleteModalFile = 'src/components/admin/DeleteTaskModal.tsx'
+
+test('Eliminar tarea: el diálogo muestra el nombre y "no se puede deshacer"; confirmar llama super_admin_delete_task', async () => {
+  let deleted = null
+  const h = harness(deleteModalFile, [], [{ data: 'task-9', error: null }], {}, { task: rowTask, onClose() {}, onDeleted(title) { deleted = title } })
+  const dialog = find(h.render(), node => node.props?.role === 'dialog')
+  assert.match(JSON.stringify(dialog), /Guion anuncio 3/)
+  assert.match(JSON.stringify(dialog), /no se puede deshacer/)
+  await find(h.render(), node => buttonText(node, ' Sí, eliminar para siempre') || (node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, eliminar para siempre'))).props.onClick()
+  assert.equal(h.calls.length, 1)
+  assert.equal(h.calls[0].rpc, 'super_admin_delete_task')
+  assert.equal(h.calls[0].args.p_task_id, 'task-9')
+  assert.equal(deleted, 'Guion anuncio 3')
+})
+
+test('Eliminar tarea: si la base lo rechaza, se queda abierto con el error', async () => {
+  let deleted = false
+  const h = harness(deleteModalFile, [], [{ data: null, error: { message: 'Solo el super admin puede eliminar tareas para siempre' } }], {}, { task: rowTask, onClose() {}, onDeleted() { deleted = true } })
+  await find(h.render(), node => node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, eliminar para siempre')).props.onClick()
+  assert.equal(deleted, false)
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'alert')), /Solo el super admin/)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Selección múltiple: casilla junto al nombre, archivar / eliminar varias de una
+// ─────────────────────────────────────────────────────────────────────────
+
+const multiTasks = [
+  { id: 't-1', title: 'Guion 1', status: 'pendiente', priority: 'alta', department: 'copy', project_id: 'project-1' },
+  { id: 't-2', title: 'Guion 2', status: 'pendiente', priority: 'alta', department: 'copy', project_id: 'project-1' },
+  { id: 't-3', title: 'Diseño 1', status: 'pendiente', priority: 'media', department: 'diseno', project_id: 'project-1' },
+]
+const isRowBox = id => node => typeof node.props?.onToggle === 'function' && node.props?.label === `Seleccionar tarea ${id}`
+const isAllBox = node => typeof node.props?.onToggle === 'function' && /todas/.test(node.props?.label || '')
+const isBar = node => typeof node.props?.onArchive === 'function' && typeof node.props?.onClear === 'function'
+const isBulkModal = node => typeof node.props?.onDone === 'function' && Array.isArray(node.props?.tasks)
+
+test('Tareas del proyecto: casillas por tarea y "seleccionar todas" solo para admins', () => {
+  const props = { ...projectProps, tasks: multiTasks }
+  const team = harness(projectFile, [], [], { user: { id: 'u', role: 'team' } }, props)
+  assert.equal(find(team.render(), isAllBox), undefined, 'el equipo no ve casillas')
+  assert.equal(find(team.render(), isRowBox('Guion 1')), undefined)
+  const admin = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, props)
+  assert.ok(find(admin.render(), isAllBox))
+  assert.ok(find(admin.render(), isRowBox('Guion 1')))
+})
+
+test('Seleccionar varias: la barra muestra cuántas, "todas" queda a medias y luego completa', () => {
+  const h = harness(projectFile, [], [], superAdminAuth, { ...projectProps, tasks: multiTasks })
+  assert.equal(find(h.render(), isBar).props.count, 0)
+  assert.equal(find(h.render(), isAllBox).props.state, 'none')
+  find(h.render(), isRowBox('Guion 1')).props.onToggle()
+  find(h.render(), isRowBox('Diseño 1')).props.onToggle()
+  assert.equal(find(h.render(), isBar).props.count, 2)
+  assert.equal(find(h.render(), isAllBox).props.state, 'some', 'indeterminada')
+  assert.equal(find(h.render(), isRowBox('Guion 1')).props.state, true)
+  find(h.render(), isAllBox).props.onToggle()
+  assert.equal(find(h.render(), isBar).props.count, 3)
+  assert.equal(find(h.render(), isAllBox).props.state, 'all')
+  find(h.render(), isAllBox).props.onToggle()
+  assert.equal(find(h.render(), isBar).props.count, 0)
+  find(h.render(), isRowBox('Guion 2')).props.onToggle()
+  find(h.render(), isBar).props.onClear()
+  assert.equal(find(h.render(), isBar).props.count, 0, 'quitar selección')
+})
+
+test('Eliminar en lote: solo super admin; el admin solo puede archivar', () => {
+  const props = { ...projectProps, tasks: multiTasks }
+  const admin = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, props)
+  let bar = find(admin.render(), isBar)
+  assert.equal(bar.props.canArchive, true)
+  assert.equal(bar.props.canDelete, false)
+  find(admin.render(), isRowBox('Guion 1')).props.onToggle()
+  find(admin.render(), isBar).props.onDelete()
+  assert.equal(find(admin.render(), isBulkModal), undefined, 'sin permiso no abre el diálogo de eliminar')
+  find(admin.render(), isBar).props.onArchive()
+  const modal = find(admin.render(), isBulkModal)
+  assert.equal(modal.props.action, 'archivar')
+  assert.deepEqual(JSON.parse(JSON.stringify(modal.props.tasks)).map(({ id, title }) => ({ id, title })), [{ id: 't-1', title: 'Guion 1' }])
+  assert.equal(modal.props.tasks[0].department, 'copy', 'el lote lleva depto/estado para saber cuáles saltar')
+
+  const sa = harness(projectFile, [], [], superAdminAuth, props)
+  bar = find(sa.render(), isBar)
+  assert.equal(bar.props.canDelete, true)
+  find(sa.render(), isAllBox).props.onToggle()
+  find(sa.render(), isBar).props.onDelete()
+  const del = find(sa.render(), isBulkModal)
+  assert.equal(del.props.action, 'eliminar')
+  assert.equal(del.props.tasks.length, 3)
+})
+
+test('Al terminar el lote: se limpia la selección (menos las que fallaron), avisa y refresca', () => {
+  let refreshed = 0
+  const h = harness(projectFile, [], [], superAdminAuth, { ...projectProps, tasks: multiTasks, onUpdate() { refreshed++ } })
+  find(h.render(), isAllBox).props.onToggle()
+  find(h.render(), isBar).props.onDelete()
+  find(h.render(), isBulkModal).props.onDone({ action: 'eliminar', okIds: ['t-1', 't-2'], failed: [{ id: 't-3', title: 'Diseño 1', error: 'x' }] })
+  assert.equal(find(h.render(), isBulkModal), undefined)
+  assert.equal(refreshed, 1)
+  assert.equal(find(h.render(), isBar).props.count, 1, 'la que falló sigue seleccionada')
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /2 tareas eliminadas para siempre\. No se pudo eliminar 1 tarea\./)
+})
+
+test('Las seleccionadas que el filtro oculta no cuentan ni se borran', () => {
+  const h = harness(projectFile, [], [], superAdminAuth, { ...projectProps, tasks: multiTasks })
+  find(h.render(), isAllBox).props.onToggle()
+  // filtro de departamento → solo "copy"
+  const deptSelect = find(h.render(), node => node.type === 'select' && [node.props.children].flat(Infinity).some(c => c?.props?.value === 'copy'))
+  assert.ok(deptSelect, 'filtro de departamento')
+  deptSelect.props.onChange({ target: { value: 'copy' } })
+  assert.equal(find(h.render(), isBar).props.count, 2)
+  assert.equal(find(h.render(), isAllBox).props.state, 'all', 'todas las visibles')
+  find(h.render(), isBar).props.onDelete()
+  assert.deepEqual([...find(h.render(), isBulkModal).props.tasks.map(t => t.id)], ['t-1', 't-2'])
+})
+
+const bulkFile = 'src/components/admin/BulkTaskActionModal.tsx'
+const bulkTasks = [{ id: 't-1', title: 'Guion 1' }, { id: 't-2', title: 'Guion 2' }, { id: 't-3', title: 'Diseño 1' }]
+const textOf = node => JSON.stringify(node)
+const confirmBtn = text => node => node.type === 'button' && textOf(node.props.children).includes(text)
+
+test('Eliminar en lote: el diálogo dice cuántas y que es permanente; llama super_admin_delete_task por cada una', async () => {
+  let done = null
+  const replies = bulkTasks.map(t => ({ data: t.id, error: null }))
+  const h = harness(bulkFile, [], replies, {}, { action: 'eliminar', tasks: bulkTasks, onClose() {}, onDone(r) { done = r } })
+  const dialog = find(h.render(), node => node.props?.role === 'dialog')
+  assert.match(textOf(dialog), /Eliminar 3 tareas/)
+  assert.match(textOf(dialog), /permanente y no se puede deshacer/)
+  await find(h.render(), confirmBtn('Sí, eliminar 3 para siempre')).props.onClick()
+  assert.deepEqual(h.calls.map(c => c.rpc), ['super_admin_delete_task', 'super_admin_delete_task', 'super_admin_delete_task'])
+  assert.deepEqual(h.calls.map(c => c.args.p_task_id), ['t-1', 't-2', 't-3'])
+  assert.deepEqual(JSON.parse(JSON.stringify(done)), { action: 'eliminar', okIds: ['t-1', 't-2', 't-3'], failed: [] })
+})
+
+test('Eliminar en lote con fallas parciales: muestra cuáles fallaron y avisa al cerrar', async () => {
+  let done = null
+  const replies = [{ data: 't-1', error: null }, { data: null, error: { message: 'Solo el super admin puede eliminar tareas para siempre' } }, { data: null, error: null }]
+  const h = harness(bulkFile, [], replies, {}, { action: 'eliminar', tasks: bulkTasks, onClose() {}, onDone(r) { done = r } })
+  await find(h.render(), confirmBtn('Sí, eliminar 3 para siempre')).props.onClick()
+  assert.equal(done, null, 'espera a que lo lea')
+  const alert = find(h.render(), node => node.props?.role === 'alert')
+  assert.match(textOf(alert), /1 tarea eliminada para siempre\. No se pudo eliminar 2 tareas\./)
+  assert.match(textOf(alert), /Guion 2/)
+  assert.match(textOf(alert), /Solo el super admin/)
+  assert.match(textOf(alert), /Diseño 1/)
+  assert.match(textOf(alert), /No se confirmó el borrado/)
+  find(h.render(), confirmBtn('Entendido')).props.onClick()
+  assert.deepEqual([...done.okIds], ['t-1'])
+  assert.deepEqual([...done.failed.map(f => f.id)], ['t-2', 't-3'])
+})
+
+test('Archivar en lote: usa admin_archive_task con el mismo motivo para todas', async () => {
+  let done = null
+  const replies = bulkTasks.slice(0, 2).map(t => ({ data: { id: t.id }, error: null }))
+  const h = harness(bulkFile, [], replies, {}, { action: 'archivar', tasks: bulkTasks.slice(0, 2), onClose() {}, onDone(r) { done = r } })
+  assert.match(textOf(find(h.render(), node => node.props?.role === 'dialog')), /Archivar 2 tareas/)
+  find(h.render(), node => node.type === 'textarea').props.onChange({ target: { value: '  duplicadas ' } })
+  await find(h.render(), confirmBtn('Archivar 2')).props.onClick()
+  assert.deepEqual(h.calls.map(c => [c.rpc, c.args.p_task_id, c.args.p_reason]), [['admin_archive_task', 't-1', 'duplicadas'], ['admin_archive_task', 't-2', 'duplicadas']])
+  assert.equal(done.failed.length, 0)
+})
+
+const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
+test('TeamTasksManager: casillas, seleccionar todas y barra de acciones (eliminar solo super admin)', () => {
+  const manager = read('src/components/admin/TeamTasksManager.tsx')
+  assert.match(manager, /<TaskSelectionBar[\s\S]*?canDelete=\{canDeleteTask\}/)
+  assert.equal((manager.match(/onToggle=\{\(\) => setSelectedTaskIds\(prev => toggleSelected\(prev, task\.id\)\)\}/g) || []).length, 2, 'casilla en tarjeta y tabla')
+  assert.equal((manager.match(/toggleSelectAll\(prev, visibleTaskIds\)/g) || []).length, 2)
+  assert.match(manager, /\{bulkAction && isAdmin && \(bulkAction\.action === 'archivar' \|\| bulkAction\.action === 'reasignar' \|\| bulkAction\.action === 'necesito' \|\| \(bulkAction\.action === 'eliminar' && canDeleteTask\)/)
+  assert.match(manager, /setSelectedTaskIds\(result\.failed\.map\(item => item\.id\)\)/)
+  assert.match(manager, /void onTasksChange\(\)\n  \}/)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// Edición en línea en "Tareas del proyecto": Asignado a, Depto, Prioridad, La necesito para
+// ─────────────────────────────────────────────────────────────────────────
+
+const inlineTasks = [
+  { id: 'i-1', title: 'Brief', status: 'pendiente', priority: 'alta', department: 'lider', project_id: 'project-1', assigned_to: 'tony', assignee: { id: 'tony', full_name: 'Tony Rubio' }, needed_date: '2026-11-10' },
+  { id: 'i-2', title: 'Hecha', status: 'completada', priority: 'media', department: 'copy', project_id: 'project-1', assigned_to: 'dani', assignee: { id: 'dani', full_name: 'Dani' } },
+  { id: 'i-3', title: 'Del cliente', status: 'pendiente', priority: 'media', department: 'cliente', project_id: 'project-1', assigned_to: 'cli', assignee: { id: 'cli', full_name: 'Cliente' } },
+]
+const inlineMembers = [{ id: 'tony', full_name: 'Tony Rubio', active: true }, { id: 'dani', full_name: 'Dani', active: true }, { id: 'fabi', full_name: 'Fabi', active: true }, { id: 'old', full_name: 'Ex', active: false }]
+const inlineEditor = (prefix, title) => node => typeof node.props?.onSave === 'function' && node.props?.label === `${prefix} de ${title}`
+const adminAuth = { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }
+
+test('Edición en línea: el equipo solo ve texto; admins editan tareas abiertas; las realizadas solo el super admin', () => {
+  const props = { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers }
+  const team = harness(projectFile, [], [], { user: { id: 'u', role: 'team' } }, props)
+  for (const prefix of ['persona asignada', 'departamento', 'prioridad', 'fecha "La necesito para"']) {
+    assert.equal(find(team.render(), inlineEditor(prefix, 'Brief')), undefined, `equipo sin editor de ${prefix}`)
+  }
+  const admin = harness(projectFile, [], [], adminAuth, props)
+  for (const prefix of ['persona asignada', 'departamento', 'prioridad', 'fecha "La necesito para"']) {
+    assert.ok(find(admin.render(), inlineEditor(prefix, 'Brief')), `admin edita ${prefix}`)
+  }
+  assert.equal(find(admin.render(), inlineEditor('prioridad', 'Hecha')), undefined, 'admin no edita una realizada')
+  const showAll = h => find(h.render(), node => node.type === 'select' && [node.props.children].flat(Infinity).some(c => c?.props?.value === 'abiertas')).props.onChange({ target: { value: 'todas' } })
+  showAll(admin)
+  assert.ok(find(admin.render(), node => node.type === 'td' && node.props.children === 'Hecha'), 'la realizada se ve')
+  assert.equal(find(admin.render(), inlineEditor('prioridad', 'Hecha')), undefined, 'admin no edita una realizada (filtro Todas)')
+  const sa = harness(projectFile, [], [], superAdminAuth, props)
+  showAll(sa)
+  assert.ok(find(sa.render(), inlineEditor('prioridad', 'Hecha')), 'super admin sí edita una realizada')
+  // Tareas del cliente: persona y depto con el lápiz; prioridad y fecha sí en línea.
+  assert.equal(find(sa.render(), inlineEditor('persona asignada', 'Del cliente')), undefined)
+  assert.equal(find(sa.render(), inlineEditor('departamento', 'Del cliente')), undefined)
+  assert.ok(find(sa.render(), inlineEditor('prioridad', 'Del cliente')))
+})
+
+test('Edición en línea: opciones de persona (solo activos), depto sin "cliente" y las 4 prioridades', () => {
+  const h = harness(projectFile, [], [], superAdminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers })
+  const people = find(h.render(), inlineEditor('persona asignada', 'Brief')).props.options.map(o => o.value)
+  assert.deepEqual([...people].sort(), ['dani', 'fabi', 'tony'])
+  assert.ok(!people.includes('old'), 'sin inactivos')
+  assert.ok(!people.includes('cli'), 'sin el usuario cliente')
+  const depts = find(h.render(), inlineEditor('departamento', 'Brief')).props.options.map(o => o.value)
+  assert.ok(!depts.includes('cliente'))
+  assert.ok(depts.includes('copy') && depts.includes('lider'))
+  assert.deepEqual([...find(h.render(), inlineEditor('prioridad', 'Brief')).props.options.map(o => o.value)], ['critica', 'alta', 'media', 'baja'])
+})
+
+test('Reasignar en línea: cambio optimista, guarda con admin_update_task (la misma RPC del lápiz) y refresca', async () => {
+  let refreshed = 0
+  const h = harness(projectFile, [], [{ data: { id: 'i-1' }, error: null }], superAdminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers, onUpdate() { refreshed++ } })
+  find(h.render(), inlineEditor('persona asignada', 'Brief')).props.onSave('fabi')
+  const optimistic = find(h.render(), inlineEditor('persona asignada', 'Brief'))
+  assert.equal(optimistic.props.value, 'fabi', 'se ve el cambio antes de que conteste la base')
+  assert.match(JSON.stringify(optimistic.props.display), /Fabi/)
+  await flush()
+  assert.equal(h.calls.length, 1)
+  assert.equal(h.calls[0].rpc, 'admin_update_task')
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].args)), { p_task_id: 'i-1', p_changes: { assigned_to: 'fabi' } })
+  assert.equal(refreshed, 1)
+})
+
+test('Si la base rechaza el cambio en línea, se regresa al valor anterior y sale un aviso', async () => {
+  const h = harness(projectFile, [], [{ data: null, error: { message: 'Solo los administradores pueden editar tareas' } }], adminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers })
+  find(h.render(), inlineEditor('prioridad', 'Brief')).props.onSave('critica')
+  assert.equal(find(h.render(), inlineEditor('prioridad', 'Brief')).props.value, 'critica')
+  await flush()
+  assert.equal(find(h.render(), inlineEditor('prioridad', 'Brief')).props.value, 'alta', 'revertido')
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /No se pudo cambiar la prioridad: Solo los administradores pueden editar tareas\. Se regresó al valor anterior\./)
+})
+
+test('La necesito para: elegir fecha y quitarla mandan needed_date (fecha o null); mismo valor no guarda', async () => {
+  const h = harness(projectFile, [], [{ data: {}, error: null }, { data: {}, error: null }], superAdminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers })
+  find(h.render(), inlineEditor('fecha "La necesito para"', 'Brief')).props.onSave('2026-11-10')
+  await flush()
+  assert.equal(h.calls.length, 0, 'misma fecha: no llama a la base')
+  find(h.render(), inlineEditor('fecha "La necesito para"', 'Brief')).props.onSave('2026-11-20')
+  await flush()
+  find(h.render(), inlineEditor('fecha "La necesito para"', 'Brief')).props.onSave('')
+  await flush()
+  assert.deepEqual(h.calls.map(c => JSON.parse(JSON.stringify(c.args.p_changes))), [{ needed_date: '2026-11-20' }, { needed_date: null }])
+})
+
+test('Depto en línea guarda el departamento; en tareas del cliente no hay editor', async () => {
+  const h = harness(projectFile, [], [{ data: {}, error: null }], superAdminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers })
+  find(h.render(), inlineEditor('departamento', 'Brief')).props.onSave('copy')
+  await flush()
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].args.p_changes)), { department: 'copy' })
+})
+
+test('Tareas del equipo: persona y prioridad editables en la tarjeta con la misma regla y la misma RPC', () => {
+  const manager = read('src/components/admin/TeamTasksManager.tsx')
+  assert.match(manager, /canInlineEditTask\(user, task\) && !inlineFieldLocked\(task, 'assigned_to'\)/)
+  assert.match(manager, /label=\{`prioridad de \$\{task\.title\}`\}/)
+  assert.match(manager, /supabase\.rpc\('admin_update_task', \{ p_task_id: task\.id, p_changes: changes \}\)/)
+  assert.match(manager, /setTaskOverrides\(prev => removeOverride\(prev, task\.id, patch\)\)\n      setDeleteNotice\(inlineErrorNotice/)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// TEMPORAL (ENABLE_QUICK_COMPLETE): palomita verde "marcar realizada", solo super admin
+// ─────────────────────────────────────────────────────────────────────────
+
+const quickTasks = [
+  { id: 'q-1', title: 'Video 1', status: 'en_progreso', priority: 'alta', department: 'edicion', project_id: 'project-1' },
+  { id: 'q-2', title: 'Video 2', status: 'completada', priority: 'alta', department: 'edicion', project_id: 'project-1' },
+]
+const isQuick = title => node => node.type === 'button' && node.props?.['aria-label'] === `Marcar como realizada ${title}`
+
+test('Palomita verde: solo el super admin, a la derecha del bote, y no en tareas realizadas', () => {
+  const props = { ...projectProps, tasks: quickTasks }
+  const admin = harness(projectFile, [], [], adminAuth, props)
+  assert.equal(find(admin.render(), isQuick('Video 1')), undefined, 'el admin no la ve')
+  const sa = harness(projectFile, [], [], superAdminAuth, props)
+  const quick = find(sa.render(), isQuick('Video 1'))
+  assert.ok(quick)
+  find(sa.render(), node => node.type === 'select' && [node.props.children].flat(Infinity).some(c => c?.props?.value === 'abiertas')).props.onChange({ target: { value: 'todas' } })
+  assert.equal(find(sa.render(), isQuick('Video 2')), undefined, 'ya realizada: sin palomita')
+  const actions = find(sa.render(), node => node.type === 'div' && node.props?.className === 'flex justify-end gap-2' && [node.props.children].flat(Infinity).some(isQuick('Video 1')))
+  const kids = [actions.props.children].flat(Infinity).filter(Boolean)
+  const trashIdx = kids.findIndex(k => k.props?.title === 'Eliminar tarea para siempre')
+  const quickIdx = kids.findIndex(k => k.props?.title === 'Marcar como realizada')
+  assert.ok(trashIdx >= 0 && quickIdx === trashIdx + 1, 'justo a la derecha del bote')
+})
+
+test('Palomita verde: marca completada con super_admin_set_task_status (fecha la pone la base), avisa y se puede deshacer', async () => {
+  let refreshed = 0
+  const replies = [{ data: { id: 'q-1', status: 'completada' }, error: null }, { data: { id: 'q-1', status: 'en_progreso' }, error: null }]
+  const h = harness(projectFile, [], replies, superAdminAuth, { ...projectProps, tasks: quickTasks, onUpdate() { refreshed++ } })
+  find(h.render(), isQuick('Video 1')).props.onClick()
+  await flush()
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0])), { rpc: 'super_admin_set_task_status', args: { p_task_id: 'q-1', p_status: 'completada', p_completion_date: null } })
+  assert.equal(refreshed, 1)
+  const toast = find(h.render(), node => node.props?.role === 'status' && /marcada como realizada/.test(JSON.stringify(node)))
+  assert.ok(toast)
+  await find(toast, node => node.type === 'button' && node.props.children === 'Deshacer').props.onClick()
+  await flush()
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].args)), { p_task_id: 'q-1', p_status: 'en_progreso', p_completion_date: null })
+  assert.equal(refreshed, 2)
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /volvió a su estatus anterior/)
+})
+
+test('Palomita verde: si la base la rechaza, se explica', async () => {
+  const h = harness(projectFile, [], [{ data: null, error: { message: 'Solo el super admin puede cambiar el estatus desde aquí' } }], superAdminAuth, { ...projectProps, tasks: quickTasks })
+  find(h.render(), isQuick('Video 1')).props.onClick()
+  await flush()
+  assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'status')), /No se pudo marcar como realizada: Solo el super admin/)
+})
+
+test('Barra de selección: "Marcar realizadas" solo para el super admin y abre el diálogo con las tareas', () => {
+  const props = { ...projectProps, tasks: multiTasks }
+  const admin = harness(projectFile, [], [], adminAuth, props)
+  assert.equal(find(admin.render(), isBar).props.canComplete, false)
+  find(admin.render(), isAllBox).props.onToggle()
+  find(admin.render(), isBar).props.onComplete()
+  assert.equal(find(admin.render(), isBulkModal), undefined)
+  const sa = harness(projectFile, [], [], superAdminAuth, props)
+  assert.equal(find(sa.render(), isBar).props.canComplete, true)
+  find(sa.render(), isAllBox).props.onToggle()
+  find(sa.render(), isBar).props.onComplete()
+  const modal = find(sa.render(), isBulkModal)
+  assert.equal(modal.props.action, 'completar')
+  assert.equal(modal.props.tasks.length, 3)
+})
+
+test('Marcar realizadas en lote: una por una con super_admin_set_task_status; reporta las que fallan', async () => {
+  let done = null
+  const replies = [{ data: {}, error: null }, { data: null, error: { message: 'La tarea no existe' } }, { data: {}, error: null }]
+  const h = harness(bulkFile, [], replies, {}, { action: 'completar', tasks: bulkTasks, onClose() {}, onDone(r) { done = r } })
+  assert.match(textOf(find(h.render(), node => node.props?.role === 'dialog')), /Marcar 3 tareas como realizadas/)
+  await find(h.render(), confirmBtn('Marcar 3 como realizadas')).props.onClick()
+  assert.deepEqual(h.calls.map(c => [c.rpc, c.args.p_task_id, c.args.p_status, c.args.p_completion_date]), [
+    ['super_admin_set_task_status', 't-1', 'completada', null],
+    ['super_admin_set_task_status', 't-2', 'completada', null],
+    ['super_admin_set_task_status', 't-3', 'completada', null],
+  ])
+  assert.equal(done, null)
+  assert.match(textOf(find(h.render(), node => node.props?.role === 'alert')), /2 tareas marcadas como realizadas\. No se pudo marcar como realizada 1 tarea\./)
+  find(h.render(), confirmBtn('Entendido')).props.onClick()
+  assert.deepEqual([...done.failed.map(f => f.id)], ['t-2'])
+})
+
+test('Tareas del equipo y detalle: "Marcar realizadas" en la barra y palomita en el detalle, todo detrás de ENABLE_QUICK_COMPLETE', () => {
+  const manager = read('src/components/admin/TeamTasksManager.tsx')
+  assert.match(manager, /canComplete=\{canBulkQuickComplete\(user\)\}/)
+  assert.match(manager, /bulkAction\.action === 'completar' && canBulkQuickComplete\(user\)/)
+  const detail = read('src/components/team/TaskDetailModal.tsx')
+  assert.match(detail, /\{canQuickComplete\(user, task\) && \(/)
+  assert.match(detail, /supabase\.rpc\('super_admin_set_task_status', quickCompleteArgs\(task\.id\)\)/)
+  const flag = read('src/lib/quickComplete.ts')
+  assert.match(flag, /export const ENABLE_QUICK_COMPLETE = true/)
+  assert.match(read('DOCUMENTACION.md'), /ENABLE_QUICK_COMPLETE/)
+})
+
+// ── Fase 1: reasignar y fecha "La necesito para" en lote ──
+const editTasks = [
+  { id: 'r-1', title: 'Copy 1', department: 'copy', status: 'pendiente', assigned_to: 'u-a', needed_date: null },
+  { id: 'r-2', title: 'Aprobar guion', department: 'cliente', status: 'pendiente', assigned_to: 'u-c', needed_date: null },
+  { id: 'r-3', title: 'Diseño hecho', department: 'diseno', status: 'completada', assigned_to: 'u-a', needed_date: null },
+  { id: 'r-4', title: 'Ya de Bea', department: 'copy', status: 'pendiente', assigned_to: 'u-b', needed_date: '2026-11-20' },
+]
+const members = [{ id: 'u-a', full_name: 'Ana' }, { id: 'u-b', full_name: 'Bea' }]
+
+test('Reasignar en lote: elige persona, usa admin_update_task y salta cliente, realizadas y las que ya eran suyas', async () => {
+  let done = null
+  const h = harness(bulkFile, [], [{ data: null, error: null }], {}, { action: 'reasignar', tasks: editTasks, members, onClose() {}, onDone(r) { done = r } })
+  const select = find(h.render(), node => node.type === 'select')
+  assert.match(textOf(select), /Bea/)
+  assert.equal(find(h.render(), confirmBtn('Reasignar')).props.disabled, true, 'sin persona no se puede confirmar')
+  select.props.onChange({ target: { value: 'u-b' } })
+  const dialog = textOf(find(h.render(), node => node.props?.role === 'dialog'))
+  assert.match(dialog, /Se saltarán 3 tareas/)
+  await find(h.render(), confirmBtn('Reasignar 1')).props.onClick()
+  assert.deepEqual(h.calls.map(c => [c.rpc, c.args.p_task_id, JSON.stringify(c.args.p_changes)]), [['admin_update_task', 'r-1', '{"assigned_to":"u-b"}']])
+  assert.equal(done, null, 'muestra lo que se saltó antes de cerrar')
+  const alert = textOf(find(h.render(), node => node.props?.role === 'alert'))
+  assert.match(alert, /1 tarea reasignada\. Se saltaron 3 tareas\./)
+  assert.match(alert, /Es tarea del cliente/)
+  assert.match(alert, /solo el super admin la edita/)
+  assert.match(alert, /Ya estaba asignada a esa persona/)
+  find(h.render(), confirmBtn('Entendido')).props.onClick()
+  assert.deepEqual([...done.okIds], ['r-1'])
+  assert.deepEqual([...done.skipped.map(s => s.id)], ['r-2', 'r-3', 'r-4'])
+})
+
+test('Reasignar en lote: el super admin sí puede reasignar realizadas', async () => {
+  const h = harness(bulkFile, [], [{ data: null, error: null }, { data: null, error: null }], {}, { action: 'reasignar', tasks: editTasks.slice(0, 3), members, canEditCompleted: true, onClose() {}, onDone() {} })
+  find(h.render(), node => node.type === 'select').props.onChange({ target: { value: 'u-b' } })
+  await find(h.render(), confirmBtn('Reasignar 2')).props.onClick()
+  assert.deepEqual(h.calls.map(c => c.args.p_task_id), ['r-1', 'r-3'])
+})
+
+test('Fecha "La necesito para" en lote: poner fecha y quitarla mandan needed_date (fecha o null)', async () => {
+  let done = null
+  const set = harness(bulkFile, [], [{ data: null, error: null }, { data: null, error: null }, { data: null, error: null }], {}, { action: 'necesito', tasks: [editTasks[0], editTasks[1], editTasks[3]], members, onClose() {}, onDone(r) { done = r } })
+  find(set.render(), node => node.type === 'input' && node.props.type === 'date').props.onChange({ target: { value: '2026-11-25' } })
+  await find(set.render(), confirmBtn('Guardar fecha en 3')).props.onClick()
+  assert.deepEqual(set.calls.map(c => JSON.stringify(c.args.p_changes)), ['{"needed_date":"2026-11-25"}', '{"needed_date":"2026-11-25"}', '{"needed_date":"2026-11-25"}'])
+  assert.equal(done.failed.length, 0)
+
+  const clear = harness(bulkFile, [], [{ data: null, error: null }], {}, { action: 'necesito', tasks: [editTasks[0], editTasks[3]], members, onClose() {}, onDone() {} })
+  find(clear.render(), node => node.type === 'input' && node.props.type === 'radio' && node.props.checked === false).props.onChange()
+  await find(clear.render(), confirmBtn('Quitar fecha a 1')).props.onClick()
+  assert.deepEqual(clear.calls.map(c => [c.args.p_task_id, JSON.stringify(c.args.p_changes)]), [['r-4', '{"needed_date":null}']])
+})
+
+test('Barra de selección: Reasignar y Fecha para admins en Tareas del proyecto y del equipo', () => {
+  const bar = read('src/components/admin/TaskSelectionBar.tsx')
+  assert.match(bar, /canEdit && onReassign/)
+  assert.match(bar, /Fecha “La necesito para”/)
+  for (const file of ['src/components/admin/ProjectDetail.tsx', 'src/components/admin/TeamTasksManager.tsx']) {
+    const src = read(file)
+    assert.match(src, /onReassign=\{\(\) => openBulk\('reasignar'\)\}/, file)
+    assert.match(src, /onSetNeeded=\{\(\) => openBulk\('necesito'\)\}/, file)
+    assert.match(src, /canEditCompleted=\{/, file)
+    assert.match(src, /department: t(ask)?\.department, status: t(ask)?\.status, assigned_to: t(ask)?\.assigned_to/, file)
+  }
+})
+
+test('Agenda del equipo: vista de admins en Operación, siempre visible, con equipo + admins', () => {
+  const dash = read('src/components/admin/AdminDashboard.tsx')
+  assert.match(dash, /\{ id: 'agenda', label: 'Agenda del equipo'/)
+  assert.match(dash, /ids: \['overview', 'team', 'team_tasks', 'agenda',/)
+  assert.match(dash, /item\.id === 'agenda' \|\|/)
+  assert.match(dash, /<TeamAgenda teamMembers=\{teamMembers\} adminMembers=\{adminMembers\} tasks=\{operationalTasks\}/)
+})
+
+test('Mi día y calendario del equipo usan la fecha de CDMX', () => {
+  assert.match(read('src/components/team/TeamDashboard.tsx'), /const todayKey = cdmxTodayKey\(\)/)
+  assert.match(read('src/components/team/TeamCalendarView.tsx'), /cdmxTodayKey\(\)/)
 })

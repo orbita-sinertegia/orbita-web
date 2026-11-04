@@ -4,13 +4,21 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Department, Priority, Project, Task, User } from '../../types'
 import { PHASES, PHASE_LABELS } from '../../data/projectTemplates'
-import { buildTaskChanges, friendlyTaskError, type TaskFormValues } from '../../lib/adminTasks'
+import { buildStatusChange, buildTaskChanges, friendlyTaskError, type TaskFormValues, type TaskStatusValue } from '../../lib/adminTasks'
+import { canEditTaskStatus } from '../../lib/projectStatus'
 
 interface Props {
   task: Task
   onClose: () => void
   onSaved: (updatedTask: Task) => void
 }
+
+const TASK_STATUSES: { value: TaskStatusValue; label: string }[] = [
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'en_progreso', label: 'En progreso' },
+  { value: 'bloqueada', label: 'Detenida' },
+  { value: 'completada', label: 'Realizada (completada)' },
+]
 
 const DEPARTMENTS: { value: Department; label: string }[] = [
   { value: 'edicion', label: 'Edición' },
@@ -31,6 +39,10 @@ function mergeMembers(extra: User | undefined, members: User[]) {
 
 export default function EditTaskModal({ task, onClose, onSaved }: Props) {
   const { user } = useAuth()
+  // Solo el super admin cambia estatus y fecha de realización (también de tareas ya realizadas).
+  const canEditStatus = canEditTaskStatus(user)
+  const [status, setStatus] = useState<TaskStatusValue>(task.status)
+  const [completionDate, setCompletionDate] = useState((task.completion_date || '').slice(0, 10))
   const [assignableMembers, setAssignableMembers] = useState<User[]>(() => mergeMembers(task.assignee, []))
   const [projects, setProjects] = useState<Project[]>(() => (task.project ? [task.project] : []))
   const [projectTasks, setProjectTasks] = useState<Task[]>([])
@@ -108,7 +120,9 @@ export default function EditTaskModal({ task, onClose, onSaved }: Props) {
   }
 
   const changes = buildTaskChanges(task, form)
-  const hasChanges = Object.keys(changes).length > 0
+  const statusChange = canEditStatus ? buildStatusChange(task, status, completionDate) : null
+  const hasFieldChanges = Object.keys(changes).length > 0
+  const hasChanges = hasFieldChanges || !!statusChange
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -122,13 +136,29 @@ export default function EditTaskModal({ task, onClose, onSaved }: Props) {
 
     setSaving(true)
     setError('')
-    const { data, error: rpcError } = await supabase.rpc('admin_update_task', { p_task_id: task.id, p_changes: changes })
-    setSaving(false)
-    if (rpcError) {
-      setError(friendlyTaskError(rpcError.message))
-      return
+    let saved: Task | null = null
+    if (hasFieldChanges) {
+      const { data, error: rpcError } = await supabase.rpc('admin_update_task', { p_task_id: task.id, p_changes: changes })
+      if (rpcError) {
+        setSaving(false)
+        setError(friendlyTaskError(rpcError.message))
+        return
+      }
+      saved = data as Task
     }
-    onSaved(data as Task)
+    if (statusChange) {
+      const { data, error: rpcError } = await supabase.rpc('super_admin_set_task_status', { p_task_id: task.id, ...statusChange })
+      if (rpcError) {
+        setSaving(false)
+        setError(hasFieldChanges
+          ? `Se guardaron los demás cambios, pero no el estatus: ${friendlyTaskError(rpcError.message)}`
+          : friendlyTaskError(rpcError.message))
+        return
+      }
+      saved = data as Task
+    }
+    setSaving(false)
+    onSaved(saved as Task)
   }
 
   return (
@@ -258,6 +288,34 @@ export default function EditTaskModal({ task, onClose, onSaved }: Props) {
             <input type="date" value={form.commitment_date} onChange={e => setForm({ ...form, commitment_date: e.target.value })}
               className="w-full border-2 border-green-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-green-50" />
           </div>
+
+          {canEditStatus && (
+            <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">Estatus (solo super admin)</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-task-status" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Estatus</label>
+                  <select id="edit-task-status" value={status} onChange={e => setStatus(e.target.value as TaskStatusValue)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    {TASK_STATUSES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="edit-task-completion" className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Fecha de realización</label>
+                  <input id="edit-task-completion" type="date" value={status === 'completada' ? completionDate : ''} disabled={status !== 'completada'}
+                    onChange={e => setCompletionDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-gray-100 disabled:text-gray-400" />
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-amber-700">
+                {task.status === 'completada' && status !== 'completada'
+                  ? 'La tarea se reabre: se quita la fecha de realización y vuelve a la lista de pendientes.'
+                  : status === 'completada' && !completionDate
+                    ? 'Si dejas la fecha vacía se usa la de hoy.'
+                    : 'Queda registrado en el historial de la tarea.'}
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Depende de</label>

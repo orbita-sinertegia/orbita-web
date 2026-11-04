@@ -160,7 +160,8 @@ export interface Milestone {
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr + 'T00:00:00')
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  // Clave local (no toISOString) para no depender de la zona horaria del dispositivo.
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 /** Hitos de la hoja de ruta, incluida la grabación con la modalidad y los hitos posteriores al lanzamiento. */

@@ -30,8 +30,10 @@ import {
   History,
   Route,
   UserCheck2,
+  CalendarDays,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { isDateKeyOverdue } from '../../lib/dates'
 import type { Task, Project, User, Client } from '../../types'
 import Logo from '../shared/Logo'
 import TopBarActions from '../shared/TopBarActions'
@@ -40,6 +42,8 @@ import { isClientAttributableDelay } from '../../lib/taskDelays'
 import TeamCapacity from './TeamCapacity'
 import TeamTasksManager from './TeamTasksManager'
 import TeamCalendar from './TeamCalendar'
+import TeamAgenda from './TeamAgenda'
+import WeeklyScorecard from './WeeklyScorecard'
 import TeamPerformance from './TeamPerformance'
 import AttendancePanel from './AttendancePanel'
 import CreateTaskModal from './CreateTaskModal'
@@ -60,6 +64,7 @@ import { usePresence } from '../../hooks/usePresence'
 import { useAuth } from '../../contexts/AuthContext'
 import TaskDetailModal from '../team/TaskDetailModal'
 import UserProfile from '../shared/UserProfile'
+import { hideDormantTasks, isDormantTask, projectStatusLabel } from '../../lib/projectStatus'
 import '../../styles/DashboardV2.css'
 
 type View =
@@ -70,6 +75,7 @@ type View =
   | 'calendar'
   | 'performance'
   | 'attendance'
+  | 'agenda'
   | 'mytasks'
   | 'roadmap'
   | 'client_roadmaps'
@@ -90,13 +96,14 @@ const STATUS_FILTER_LABELS: { value: StatusFilter; label: string }[] = [
   { value: 'todos', label: 'Todos' },
   { value: 'activo', label: 'Activos' },
   { value: 'pausado', label: 'Pausados' },
-  { value: 'completado', label: 'Completados' },
+  { value: 'completado', label: 'Finalizados' },
 ]
 
 const ADMIN_NAV_ITEMS = [
   { id: 'overview', label: 'Proyectos', icon: FolderKanban },
   { id: 'team', label: 'Carga del equipo', icon: Users },
   { id: 'team_tasks', label: 'Tareas del equipo', icon: ListChecks },
+  { id: 'agenda', label: 'Agenda del equipo', icon: CalendarDays },
   { id: 'calendar', label: 'Calendario', icon: Calendar },
   { id: 'performance', label: 'Rendimiento', icon: TrendingUp },
   { id: 'attendance', label: 'Asistencia', icon: UserCheck2 },
@@ -141,6 +148,8 @@ export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [teamMembers, setTeamMembers] = useState<User[]>([])
+  const [adminMembers, setAdminMembers] = useState<User[]>([])
+  const [performanceTab, setPerformanceTab] = useState<'tablero' | 'scorecard'>('tablero')
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('overview')
@@ -148,6 +157,8 @@ export default function AdminDashboard() {
   const [reportProject, setReportProject] = useState<Project | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('activo')
+  // Tareas pendientes de proyectos finalizados: ocultas por omisión en las vistas del equipo.
+  const [showFinalized, setShowFinalized] = useState(false)
   const [notifTask, setNotifTask] = useState<Task | null>(null)
   const [reviewFocusTask, setReviewFocusTask] = useState<Task | null>(null)
   const [unreadTeamChat, setUnreadTeamChat] = useState(0)
@@ -273,16 +284,19 @@ export default function AdminDashboard() {
   }, [user])
 
   async function fetchAll() {
-    const [{ data: proj }, { data: tsk }, { data: team }, { data: cls }] = await Promise.all([
+    const [{ data: proj }, { data: tsk }, { data: team }, { data: cls }, { data: admins }] = await Promise.all([
       supabase.from('projects').select('*, client:clients(*)').order('created_at', { ascending: false }),
       supabase.from('tasks').select('*, project:projects(*, client:clients(*)), assignee:users!assigned_to(*), links:task_links(*)').is('archived_at', null),
       supabase.from('users').select('*').eq('role', 'team').eq('active', true),
       supabase.from('clients').select('*').order('name'),
+      // Administradores activos (active nulo cuenta como activo) para el calendario del equipo.
+      supabase.from('users').select('*').eq('role', 'admin').or('active.is.null,active.eq.true'),
     ])
     setProjects(proj || [])
     setTasks(tsk || [])
     setTeamMembers(team || [])
     setClients(cls || [])
+    setAdminMembers(admins || [])
     setLoading(false)
   }
 
@@ -292,16 +306,33 @@ export default function AdminDashboard() {
     return (ptasks.filter((t) => t.status === 'completada').length / ptasks.length) * 100
   }
 
+  const operationalTasks = hideDormantTasks(tasks, showFinalized)
+  const dormantCount = tasks.filter(isDormantTask).length
+  // Métricas semanales: siempre sin pendientes de finalizados (lo ya completado sí cuenta como historial).
+  const metricTasks = hideDormantTasks(tasks)
+  const finalizedNotice = dormantCount > 0 ? (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+      <span>
+        {showFinalized
+          ? `Mostrando ${dormantCount} tarea${dormantCount === 1 ? '' : 's'} pendiente${dormantCount === 1 ? '' : 's'} de proyectos finalizados.`
+          : `${dormantCount} tarea${dormantCount === 1 ? '' : 's'} pendiente${dormantCount === 1 ? '' : 's'} de proyectos finalizados oculta${dormantCount === 1 ? '' : 's'}.`}
+      </span>
+      <button type="button" onClick={() => setShowFinalized(value => !value)} className="font-semibold text-blue-600 hover:underline">
+        {showFinalized ? 'Ocultarlas' : 'Mostrarlas'}
+      </button>
+    </div>
+  ) : null
+
   // "Fuera de fecha" y la salud operativa solo cuentan retrasos de la agencia —
   // los del cliente se muestran aparte y no penalizan al equipo.
-  const overdueTasks = tasks.filter((t) => t.commitment_date && t.status !== 'completada' && new Date(t.commitment_date) < new Date() && !isClientAttributableDelay(t))
-  const clientDelayTasks = tasks.filter((t) => t.status !== 'completada' && isClientAttributableDelay(t))
+  const overdueTasks = operationalTasks.filter((t) => t.commitment_date && t.status !== 'completada' && isDateKeyOverdue(t.commitment_date) && !isClientAttributableDelay(t))
+  const clientDelayTasks = operationalTasks.filter((t) => t.status !== 'completada' && isClientAttributableDelay(t))
 
   // Tareas que el equipo mandó a revisión y esperan autorización del trafficker
-  const pendingTraffickerReview = tasks.filter((t) => t.review_status === 'pendiente_revision')
+  const pendingTraffickerReview = operationalTasks.filter((t) => t.review_status === 'pendiente_revision')
   // Tareas donde el cliente solicitó cambios
-  const clientChangesRequested = tasks.filter((t) => t.client_approval === 'cambios_solicitados')
-  const openTasks = tasks.filter((t) => t.status !== 'completada')
+  const clientChangesRequested = operationalTasks.filter((t) => t.client_approval === 'cambios_solicitados')
+  const openTasks = operationalTasks.filter((t) => t.status !== 'completada')
   const completedThisWeek = tasks.filter((t) => {
     if (!t.completion_date) return false
     const completedAt = new Date(`${t.completion_date}T00:00:00`)
@@ -319,7 +350,7 @@ export default function AdminDashboard() {
   const filteredProjects = (statusFilter === 'todos' ? projects : projects.filter((p) => p.status === statusFilter)).sort((a, b) => {
     const urgency = (projectId: string) => {
       const projectTasks = tasks.filter((task) => task.project_id === projectId && task.status !== 'completada')
-      const overdue = projectTasks.filter((task) => task.commitment_date && new Date(task.commitment_date) < new Date()).length
+      const overdue = projectTasks.filter((task) => isDateKeyOverdue(task.commitment_date)).length
       const review = projectTasks.filter((task) => task.review_status === 'pendiente_revision').length
       const changes = projectTasks.filter((task) => task.client_approval === 'cambios_solicitados').length
       return overdue * 100 + review * 80 + changes * 70 + projectTasks.length
@@ -331,7 +362,7 @@ export default function AdminDashboard() {
   // No debe desaparecer por permisos heredados o registros antiguos.
   const permittedAdminItems = user?.is_super_admin
     ? ADMIN_NAV_ITEMS
-    : ADMIN_NAV_ITEMS.filter((item) => item.id === 'performance' || item.id === 'attendance' || (item.id !== 'permisos' && adminPermissions[item.id] !== false))
+    : ADMIN_NAV_ITEMS.filter((item) => item.id === 'performance' || item.id === 'attendance' || item.id === 'agenda' || (item.id !== 'permisos' && adminPermissions[item.id] !== false))
   const navItems = [
     ...permittedAdminItems.map((item) => ({
       ...item,
@@ -342,7 +373,7 @@ export default function AdminDashboard() {
   const navGroups = [
     {
       label: 'Operación',
-      ids: ['overview', 'team', 'team_tasks', 'calendar', 'performance', 'attendance'],
+      ids: ['overview', 'team', 'team_tasks', 'agenda', 'calendar', 'performance', 'attendance'],
     },
     { label: 'Trabajo', ids: ['mytasks', 'roadmap', 'client_roadmaps', 'requests'] },
     {
@@ -634,7 +665,7 @@ export default function AdminDashboard() {
                             </div>
                             <span className={`v2-pill ${pillClass}`}>
                               <span className="v2-pd" />
-                              {project.status === 'activo' ? 'Activo' : project.status === 'pausado' ? 'Pausado' : 'Completado'}
+                              {projectStatusLabel(project.status)}
                             </span>
                           </div>
                           <div>
@@ -689,16 +720,28 @@ export default function AdminDashboard() {
             )}
 
             {/* Vista capacidad del equipo */}
-            {view === 'team' && <TeamCapacity teamMembers={teamMembers} tasks={tasks} onAssign={() => setView('create')} />}
+            {view === 'team' && <>{finalizedNotice}<TeamCapacity teamMembers={teamMembers} tasks={operationalTasks} onAssign={() => setView('create')} /></>}
 
             {/* Vista de administraciÃ³n directa de tareas del equipo */}
-            {view === 'team_tasks' && <TeamTasksManager teamMembers={teamMembers} tasks={tasks} onTasksChange={fetchAll} />}
+            {view === 'team_tasks' && <>{finalizedNotice}<TeamTasksManager teamMembers={teamMembers} tasks={operationalTasks} onTasksChange={fetchAll} /></>}
 
             {/* Vista calendario */}
-            {view === 'calendar' && <TeamCalendar teamMembers={teamMembers} tasks={tasks} onlineIds={onlineIds} onTasksChange={fetchAll} />}
+            {view === 'agenda' && <>{finalizedNotice}<TeamAgenda teamMembers={teamMembers} adminMembers={adminMembers} tasks={operationalTasks} onTasksChange={fetchAll} /></>}
+            {view === 'calendar' && <>{finalizedNotice}<TeamCalendar teamMembers={teamMembers} adminMembers={adminMembers} tasks={operationalTasks} onlineIds={onlineIds} onTasksChange={fetchAll} /></>}
 
             {/* Vista rendimiento */}
-            {view === 'performance' && <TeamPerformance teamMembers={teamMembers} tasks={tasks} />}
+            {view === 'performance' && (
+              <div className="space-y-4">
+                <div className="flex w-fit rounded-lg border border-gray-200 bg-white p-1">
+                  {([['tablero', 'Tablero semanal'], ['scorecard', 'Scorecard']] as const).map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => setPerformanceTab(id)} className={`rounded-md px-4 py-1.5 text-xs font-semibold ${performanceTab === id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{label}</button>
+                  ))}
+                </div>
+                {performanceTab === 'tablero'
+                  ? <WeeklyScorecard teamMembers={teamMembers} adminMembers={adminMembers} tasks={metricTasks} />
+                  : <TeamPerformance teamMembers={teamMembers} tasks={metricTasks} />}
+              </div>
+            )}
 
             {/* Vista asistencia */}
             {view === 'attendance' && <AttendancePanel teamMembers={teamMembers} />}
@@ -707,7 +750,7 @@ export default function AdminDashboard() {
             {view === 'mytasks' && <TeamDashboard embedded />}
 
             {/* Vista hoja de ruta */}
-            {view === 'roadmap' && <RoadmapView tasks={tasks} title="Todas las tareas del equipo" reportProjects={projects} onGenerateReport={setReportProject} />}
+            {view === 'roadmap' && <>{finalizedNotice}<RoadmapView tasks={operationalTasks} title="Todas las tareas del equipo" reportProjects={projects} onGenerateReport={setReportProject} /></>}
 
             {/* Vista hoja de ruta de clientes */}
             {view === 'client_roadmaps' && <ClientRoadmapsManager initialClientId={roadmapClientId} />}

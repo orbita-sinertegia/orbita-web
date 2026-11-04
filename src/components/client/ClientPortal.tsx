@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { ExternalLink, Send, Camera, Loader2, PlusCircle, CheckCircle, X, ChevronDown, CheckCheck, ClipboardList, LayoutGrid, CalendarDays, Map as MapIcon, Route, MessageCircle, Link2, Clock3, Eye, Sparkles, UserRound, LogOut, Upload, FileUp, History } from 'lucide-react'
+import { projectStatusLabel, sortProjectsByStatus } from '../../lib/projectStatus'
 import { supabase } from '../../lib/supabase'
+import { cdmxTodayKey, isDateKeyOverdue } from '../../lib/dates'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Task, Project, Client } from '../../types'
 import StatusBadge from '../shared/StatusBadge'
@@ -173,7 +175,8 @@ export default function ClientPortal() {
 
     setProjects(proj || [])
     setTasks(tsk || [])
-    if (proj && proj.length > 0) setSelectedProject(proj[0])
+    // Por omisión el proyecto activo; los finalizados siguen disponibles como historial.
+    if (proj && proj.length > 0) setSelectedProject(sortProjectsByStatus(proj)[0])
 
     if (proj && proj.length > 0) {
       const { data: events } = await supabase
@@ -356,7 +359,7 @@ export default function ClientPortal() {
   const completed = projectTasks.filter(t => t.status === 'completada').length
   const pct = projectTasks.length ? (completed / projectTasks.length) * 100 : 0
   const activeTasks = projectTasks.filter(t => t.status !== 'completada')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = cdmxTodayKey()
   const datedActiveTasks = activeTasks
     .filter(t => t.commitment_date && t.commitment_date >= today)
     .sort((a, b) => String(a.commitment_date).localeCompare(String(b.commitment_date)))
@@ -438,7 +441,7 @@ export default function ClientPortal() {
           {projects.map(p => (
             <button key={p.id} onClick={() => setSelectedProject(p)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition ${selectedProject?.id === p.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {p.name}
+              {p.name}{p.status !== 'activo' ? ` · ${projectStatusLabel(p.status)}` : ''}
             </button>
           ))}
         </div>
@@ -985,7 +988,7 @@ export default function ClientPortal() {
                 {/* Tasks */}
                 <div className="divide-y divide-gray-50">
                   {deptTasks.map(task => {
-                    const isLate = task.commitment_date && task.status !== 'completada' && new Date(task.commitment_date) < new Date()
+                    const isLate = task.status !== 'completada' && isDateKeyOverdue(task.commitment_date)
                     return (
                       <div key={task.id} className={`flex items-center gap-3 px-5 py-3 ${isLate ? 'bg-red-50' : ''}`}>
                         <div className="shrink-0">
@@ -1031,12 +1034,12 @@ export default function ClientPortal() {
 
       {/* ── Tab: Calendario ── */}
       {activeTab === 'calendario' && (
-        <ClientCalendar tasks={projectTasks} />
+        <ClientCalendar tasks={projectTasks} project={selectedProject} />
       )}
 
       {/* ── Tab: Hoja de Ruta ── */}
       {activeTab === 'roadmap' && (
-        <RoadmapView tasks={projectTasks} title={selectedProject?.name} />
+        <RoadmapView tasks={projectTasks} title={selectedProject?.name} projects={selectedProject ? [selectedProject] : []} />
       )}
 
       {/* ── Tab: Mi hoja de ruta (fases, hitos y lanzamiento, sin nombres internos) ── */}

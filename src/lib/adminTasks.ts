@@ -55,6 +55,29 @@ export function buildTaskChanges(original: Task, form: TaskFormValues): TaskChan
   return changes
 }
 
+export type TaskStatusValue = Task['status']
+
+export interface TaskStatusChange {
+  p_status: TaskStatusValue
+  p_completion_date: string | null
+}
+
+/**
+ * Cambio de estatus / fecha de realización (solo super admin, vía super_admin_set_task_status).
+ * null si no cambió nada. Al reabrir (dejar de estar completada) la fecha se limpia; al marcar
+ * completada sin fecha, el servidor pone la de hoy (CDMX).
+ */
+export function buildStatusChange(
+  original: Pick<Task, 'status' | 'completion_date'>,
+  status: TaskStatusValue,
+  completionDate: string,
+): TaskStatusChange | null {
+  const nextDate = status === 'completada' ? (completionDate.trim() ? completionDate.trim().slice(0, 10) : null) : null
+  const prevDate = original.status === 'completada' ? (original.completion_date ? original.completion_date.slice(0, 10) : null) : null
+  if (status === original.status && (status !== 'completada' || nextDate === prevDate || nextDate === null)) return null
+  return { p_status: status, p_completion_date: nextDate }
+}
+
 /**
  * Confirmación de borrado definitivo: exige escribir el título EXACTO (sensible a
  * mayúsculas) salvo espacios al inicio/fin, para que copiar y pegar siga funcionando pero
@@ -78,6 +101,8 @@ const PASSTHROUGH_PATTERNS = [
   /la tarea no existe/i,
   /el título no puede estar vacío/i,
   /no se puede deshacer/i,
+  /solo el super admin/i,
+  /estatus no válido/i,
 ]
 
 /** Traduce errores de admin_update_task/admin_archive_task/etc. a español claro. Los
@@ -88,6 +113,9 @@ export function friendlyTaskError(message: string | null | undefined): string {
   const raw = (message || '').trim()
   if (!raw) return 'No se pudo completar la acción. Intenta de nuevo.'
   if (PASSTHROUGH_PATTERNS.some(pattern => pattern.test(raw))) return raw
+  if (/could not find the function|function .* does not exist/i.test(raw)) {
+    return 'Esta opción necesita actualizar la base de datos (falta correr el SQL más reciente).'
+  }
   if (/^(new row|duplicate key|violates|permission denied for|invalid input syntax)/i.test(raw)) {
     return 'No se pudo guardar el cambio. Verifica los datos e intenta de nuevo.'
   }

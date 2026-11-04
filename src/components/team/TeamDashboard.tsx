@@ -1,7 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { MessageSquare, CheckCircle, Clock, ClipboardList, MessageCircle, Map as MapIcon, Plus, CalendarDays, Link2, Loader2, XCircle, FileText, ChevronDown, Home, AlertTriangle, ArrowRight, PlayCircle, Eye, UserRound, PanelLeftClose, PanelLeftOpen, LogOut, Route } from 'lucide-react'
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { hideDormantTasks } from '../../lib/projectStatus'
 import { supabase } from '../../lib/supabase'
+import { cdmxTodayKey, formatDateOnly, isDateKeyOverdue, mondayOf, parseDateOnly } from '../../lib/dates'
+import type { EstimatePlanTask } from '../../lib/roadmapEstimate'
+
+type RoadmapContextTask = EstimatePlanTask
 import { useAuth } from '../../contexts/AuthContext'
 import type { Task, Project, User, Priority } from '../../types'
 import PriorityBadge from '../shared/PriorityBadge'
@@ -68,6 +73,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
   const [priorityFilterPos, setPriorityFilterPos] = useState({ top: 0, left: 0 })
   const priorityFilterBtnRef = useRef<HTMLButtonElement>(null)
   const [teamView, setTeamView] = useState<TeamView>(embedded ? 'tasks' : 'today')
+  const [roadmapContextTasks, setRoadmapContextTasks] = useState<RoadmapContextTask[]>([])
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -199,6 +205,21 @@ export default function TeamDashboard({ embedded = false }: Props) {
     return () => window.removeEventListener('open-chat', handleOpenChat)
   }, [])
 
+  // Para estimar fechas en "Mis tareas en el tiempo" y en "Mi calendario" se necesita el orden de todo el proyecto:
+  // se leen solo campos de planeación (sin responsables) de las tareas de mis proyectos.
+  const roadmapProjectIds = Array.from(new Set(tasks.map(task => task.project_id).filter(Boolean))).sort().join(',')
+  useEffect(() => {
+    if ((teamView !== 'roadmap' && teamView !== 'calendar') || !roadmapProjectIds) return
+    let cancelled = false
+    supabase
+      .from('tasks')
+      .select('id, title, department, status, phase, commitment_date, completion_date, start_date, depends_on_task_id, project_id, archived_at, project:projects(*)')
+      .in('project_id', roadmapProjectIds.split(','))
+      .is('archived_at', null)
+      .then(({ data }) => { if (!cancelled) setRoadmapContextTasks((data as unknown as RoadmapContextTask[]) || []) })
+    return () => { cancelled = true }
+  }, [teamView, roadmapProjectIds])
+
   async function fetchTasks() {
     const { data } = await supabase
       .from('tasks')
@@ -207,7 +228,8 @@ export default function TeamDashboard({ embedded = false }: Props) {
       .is('archived_at', null)
       .order('priority', { ascending: true })
       .order('commitment_date', { ascending: true })
-    setTasks(data || [])
+    // Las pendientes de proyectos finalizados no son trabajo activo; las completadas quedan como historial.
+    setTasks(hideDormantTasks(data || []))
     setLoading(false)
   }
 
@@ -254,7 +276,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
 
   const byStatus = filter === 'todas' ? tasks.filter(t => t.status !== 'completada') : tasks.filter(t => t.status === filter)
   const byClient = clientFilter === 'todos' ? byStatus : byStatus.filter(t => t.project?.client?.name === clientFilter)
-  const isOverdue = (t: Task) => t.commitment_date && t.status !== 'completada' && new Date(t.commitment_date) < new Date()
+  const isOverdue = (t: Task) => !!t.commitment_date && t.status !== 'completada' && isDateKeyOverdue(t.commitment_date)
   const filtered = (priorityFilter === 'todos' ? byClient : byClient.filter(t => t.priority === priorityFilter)).slice().sort((a, b) => {
     const overdueDiff = Number(isOverdue(b)) - Number(isOverdue(a))
     if (overdueDiff) return overdueDiff
@@ -308,16 +330,9 @@ export default function TeamDashboard({ embedded = false }: Props) {
     .sort((a, b) => new Date(a.commitment_date!).getTime() - new Date(b.commitment_date!).getTime())
     .slice(0, 3)
 
-  const localDateKey = (date: Date) => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  const todayKey = localDateKey(new Date())
-  const weekStart = new Date()
-  weekStart.setHours(0, 0, 0, 0)
-  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
+  // "Mi día" usa la fecha de CDMX (no la del dispositivo), igual que el checador y los vencimientos.
+  const todayKey = cdmxTodayKey()
+  const weekStart = mondayOf(parseDateOnly(todayKey)!)
   const activeTasks = tasks.filter(t => t.status !== 'completada')
   const todayTasks = activeTasks.filter(t => t.commitment_date?.slice(0, 10) === todayKey)
   const inProgressTasks = activeTasks.filter(t => t.status === 'en_progreso')
@@ -457,11 +472,11 @@ export default function TeamDashboard({ embedded = false }: Props) {
     <>
       {/* Vista: Mi Calendario */}
       {teamView === 'calendar' && (
-        <TeamCalendarView tasks={tasks} onSelectTask={setSelectedTask} onTasksChange={fetchTasks} />
+        <TeamCalendarView tasks={tasks} contextTasks={roadmapContextTasks} onSelectTask={setSelectedTask} onTasksChange={fetchTasks} />
       )}
 
       {/* Vista: Hoja de Ruta */}
-      {teamView === 'roadmap' && <RoadmapView tasks={tasks} title="Mis tareas en el tiempo" onSelectTask={setSelectedTask} />}
+      {teamView === 'roadmap' && <RoadmapView tasks={tasks} title="Mis tareas en el tiempo" onSelectTask={setSelectedTask} contextTasks={roadmapContextTasks} />}
 
       {/* Vista: Hoja de ruta de clientes (opcional, solo si un admin la activó) */}
       {teamView === 'client_roadmaps' && <ClientRoadmapsManager restricted />}
@@ -562,7 +577,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`flex items-center gap-1 text-xs ${isOverdue(task) ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
                     <CalendarDays size={12} className="shrink-0" />
-                    {task.commitment_date ? new Date(task.commitment_date).toLocaleDateString('es-MX') : '—'}
+                    {formatDateOnly(task.commitment_date)}
                     {isOverdue(task) && ' ⚠️'}
                   </span>
                 </td>
