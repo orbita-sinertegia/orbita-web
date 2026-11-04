@@ -85,6 +85,10 @@ export interface Project {
   recording_mode?: 'oficina' | 'remota'
   launch_date?: string
   launch_date_original?: string
+  /** Etapa (columna opcional, sql/2026-11-02_etapa_proyecto.sql): en proceso o corriendo campañas. */
+  stage?: 'en_proceso' | 'corriendo' | null
+  /** Tipo de embudo (columna opcional, sql/2026-11-02_etapa_proyecto.sql). */
+  funnel_type?: 'low2funnel' | 'vsl_high_ticket' | 'high_ticket' | 'restaurante' | 'webinar' | 'otro' | null
   created_at: string
   source_template_id?: string
   client?: Client

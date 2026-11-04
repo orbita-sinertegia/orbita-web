@@ -6,6 +6,10 @@ import type { Task, User, Comment, Subtask, TimeEntry } from '../../types'
 import { isClientAttributableDelay, delayDaysFor } from '../../lib/taskDelays'
 import EditTaskModal from '../admin/EditTaskModal'
 import ArchiveTaskModal from '../admin/ArchiveTaskModal'
+import DeleteTaskModal from '../admin/DeleteTaskModal'
+import { canDeleteTasks } from '../../lib/projectStatus'
+import { canQuickComplete, quickCompleteArgs } from '../../lib/quickComplete'
+import { friendlyTaskError } from '../../lib/adminTasks'
 
 interface Props {
   task: Task
@@ -20,6 +24,25 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
   const isAdmin = user?.role === 'admin'
   // Editar/archivar: rol admin o super admin (igual que is_active_admin() en SQL).
   const canManageTasks = isAdmin || !!user?.is_super_admin
+  // Eliminar para siempre: solo el super admin.
+  const canDeleteTask = canDeleteTasks(user)
+  const [showDeleteTask, setShowDeleteTask] = useState(false)
+  // TEMPORAL (ENABLE_QUICK_COMPLETE): palomita verde junto al bote, solo super admin.
+  const [quickCompleting, setQuickCompleting] = useState(false)
+
+  async function quickComplete() {
+    if (quickCompleting || !canQuickComplete(user, task)) return
+    if (!window.confirm(`¿Marcar “${task.title}” como realizada (con fecha de hoy)?`)) return
+    setQuickCompleting(true)
+    const { error: rpcError } = await supabase.rpc('super_admin_set_task_status', quickCompleteArgs(task.id))
+    setQuickCompleting(false)
+    if (rpcError) {
+      window.alert(`No se pudo marcar como realizada: ${friendlyTaskError(rpcError.message)}`)
+      return
+    }
+    onUpdate()
+    onClose()
+  }
   const isTeam = user?.role === 'team'
   const approverIds = task.approver_ids?.length ? task.approver_ids : (task.approver_id ? [task.approver_id] : [])
   const isReviewer = user?.id === task.reviewer_id || (!!user?.id && approverIds.includes(user.id))
@@ -519,6 +542,18 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
                   className="text-amber-500 hover:text-amber-700 transition p-1.5 rounded-lg hover:bg-amber-50">
                   <Archive size={16} />
                 </button>
+                {canDeleteTask && (
+                  <button type="button" onClick={() => setShowDeleteTask(true)} title="Eliminar tarea para siempre"
+                    className="text-red-500 hover:text-red-700 transition p-1.5 rounded-lg hover:bg-red-50">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+                {canQuickComplete(user, task) && (
+                  <button type="button" onClick={() => { void quickComplete() }} disabled={quickCompleting} title="Marcar como realizada"
+                    className="text-emerald-600 hover:text-emerald-700 transition p-1.5 rounded-lg hover:bg-emerald-50 disabled:opacity-50">
+                    <CheckCircle size={16} />
+                  </button>
+                )}
               </>
             )}
 
@@ -1067,6 +1102,9 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
       )}
       {showArchiveTask && (
         <ArchiveTaskModal task={task} onClose={() => setShowArchiveTask(false)} onArchived={() => { setShowArchiveTask(false); onUpdate(); onClose() }} />
+      )}
+      {showDeleteTask && canDeleteTask && (
+        <DeleteTaskModal task={task} onClose={() => setShowDeleteTask(false)} onDeleted={() => { setShowDeleteTask(false); onUpdate(); onClose() }} />
       )}
     </div>
   )

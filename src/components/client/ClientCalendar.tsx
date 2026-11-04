@@ -1,8 +1,15 @@
-import type { Task } from '../../types'
+import { useState } from 'react'
+import type { Project, Task } from '../../types'
 import { DEPT_LABELS, DEPT_COLORS, DEPT_ORDER } from '../../data/projectTemplates'
+import { formatDateOnly, localDateKey } from '../../lib/dates'
+import { rangeOverlaps, taskRange, type EstimateMap } from '../../lib/estimateViews'
+import { useProjectEstimates } from '../../hooks/useProjectEstimates'
+import EstimatesToggle from '../shared/EstimatesToggle'
 
 interface Props {
   tasks: Task[]
+  /** Proyecto seleccionado (estado/etapa/tipo) para decidir si se muestran estimados. */
+  project?: Pick<Project, 'id' | 'status' | 'stage' | 'funnel_type'> | null
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,28 +50,34 @@ function formatWeekRange(monday: Date) {
   return `${monday.toLocaleDateString('es-MX', opts)} – ${sunday.toLocaleDateString('es-MX', opts)}`
 }
 
-function getTasksForWeek(tasks: Task[], weeksFromNow: number) {
+/** Tareas cuya fecha (real o estimada) toca la semana; las estimadas abarcan su rango aproximado. */
+function getTasksForWeek(tasks: Task[], weeksFromNow: number, estimates: EstimateMap = new Map()) {
   const monday = getMonday(weeksFromNow)
   const sunday = getSunday(monday)
-
+  const fromKey = localDateKey(monday)
+  const toKey = localDateKey(sunday)
   return tasks.filter(t => {
-    const start = t.start_date ? new Date(t.start_date + 'T00:00:00') : null
-    const commit = t.commitment_date ? new Date(t.commitment_date + 'T00:00:00') : null
-    if (!start && !commit) return false
-    const taskStart = start || commit!
-    const taskEnd = commit || start!
-    return taskStart <= sunday && taskEnd >= monday
+    if (t.archived_at) return false
+    const range = taskRange(t, estimates)
+    return !!range && rangeOverlaps(range, fromKey, toKey)
   })
 }
 
-export default function ClientCalendar({ tasks }: Props) {
+export default function ClientCalendar({ tasks, project }: Props) {
   const weeks = [0, 1, 2, 3]
+  const [showEstimates, setShowEstimates] = useState(true)
+  const estimates = useProjectEstimates({ tasks, projects: project ? [project] : [], enabled: showEstimates })
+  const anyEstimates = tasks.some(t => !t.commitment_date && t.status !== 'completada' && estimates.has(t.id))
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {showEstimates && anyEstimates && <span className="text-xs text-gray-400">≈ = fecha aproximada; se confirma cuando el equipo fija la entrega</span>}
+        <EstimatesToggle checked={showEstimates} onChange={setShowEstimates} />
+      </div>
       {weeks.map(w => {
         const monday = getMonday(w)
-        const weekTasks = getTasksForWeek(tasks, w)
+        const weekTasks = getTasksForWeek(tasks, w, estimates)
 
         // Group by department
         const byDept: Record<string, Task[]> = {}
@@ -107,21 +120,30 @@ export default function ClientCalendar({ tasks }: Props) {
                       </span>
                     </div>
                     <div className="space-y-1.5 ml-1">
-                      {byDept[dept].map(task => (
-                        <div key={task.id} className="flex items-center gap-2">
+                      {byDept[dept].map(task => {
+                        const range = taskRange(task, estimates)
+                        const estimated = !!range?.estimated
+                        return (
+                        <div key={task.id} data-estimated={estimated ? 'true' : undefined} className={`flex items-center gap-2 ${estimated ? 'rounded-md border border-dashed border-gray-300 px-1.5 py-0.5 opacity-50' : ''}`}>
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${STATUS_COLORS[task.status]}`}>
                             {STATUS_LABELS[task.status]}
                           </span>
                           <span className={`text-sm ${task.status === 'completada' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                            {task.title}
+                            {estimated ? '≈ ' : ''}{task.title}
                           </span>
                           {task.commitment_date && (
                             <span className="text-xs text-gray-400 shrink-0 ml-auto">
-                              Entrega: {new Date(task.commitment_date + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                              Entrega: {formatDateOnly(task.commitment_date, { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                          {estimated && range && (
+                            <span className="text-xs text-gray-500 shrink-0 ml-auto" title="Fecha aproximada: aún no tiene fecha de entrega confirmada">
+                              ≈ {formatDateOnly(range.start, { day: 'numeric', month: 'short' })} – {formatDateOnly(range.end, { day: 'numeric', month: 'short' })}
                             </span>
                           )}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
@@ -132,7 +154,7 @@ export default function ClientCalendar({ tasks }: Props) {
       })}
 
       <p className="text-center text-xs text-gray-400 pb-2">
-        Las tareas aparecen según sus fechas de inicio y compromiso de entrega
+        Las tareas aparecen según sus fechas de inicio y compromiso de entrega; las marcadas con ≈ son aproximadas
       </p>
     </div>
   )

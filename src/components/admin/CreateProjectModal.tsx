@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, ChevronLeft, CheckSquare, Square, GripVertical, MoreVertical, Pencil, Trash2, MessageSquare, Check, Copy, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { projectStageColumnsExist } from '../../lib/projectColumns'
+import { FUNNEL_TYPES, FUNNEL_TYPE_LABELS, PROJECT_STAGES, PROJECT_STAGE_LABELS } from '../../lib/roadmapEstimate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Department, Priority, User } from '../../types'
+<<<<<<< HEAD
 import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, tasksForModalidad, inferPhase, type Modalidad, type Phase } from '../../data/projectTemplates'
+=======
+import { resolveTemplateOwners } from '../../data/templateOwners'
+import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, tasksForModalidad, inferPhase, funnelTypeForTemplate, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
+>>>>>>> bcbca98347ae75b5521f335cb6c106a437da8c55
 import CreateFunnelTemplateModal from './CreateFunnelTemplateModal'
 
 interface CustomTemplate { id: string; name: string; icon: string; description: string | null; taskCount: number }
@@ -33,7 +40,10 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
   const [mode, setMode] = useState<'existing' | 'new'>('existing')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [newClient, setNewClient] = useState({ name: '', company: '' })
-  const [form, setForm] = useState({ name: '', description: '', templateId: '', modalidad: 'oficina' as Modalidad })
+  const [form, setForm] = useState({ name: '', description: '', templateId: '', modalidad: 'oficina' as Modalidad, stage: 'en_proceso', funnelType: '' })
+  // Etapa y tipo de embudo: solo si la base ya tiene las columnas (sql/2026-11-02_etapa_proyecto.sql).
+  const [hasStageColumns, setHasStageColumns] = useState(false)
+  useEffect(() => { let alive = true; void projectStageColumnsExist().then(ok => { if (alive) setHasStageColumns(ok) }); return () => { alive = false } }, [])
   const [saving, setSaving] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [error, setError] = useState('')
@@ -93,7 +103,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
     setArchivedTemplateIds(new Set(templates.filter((template: { archived?: boolean }) => template.archived).map((template: { id: string }) => template.id)))
     const countByTemplate: Record<string, number> = {}
     storedTasks.forEach(row => { countByTemplate[row.template_id] = (countByTemplate[row.template_id] || 0) + 1 })
-    setCustomTemplates(activeTemplates.filter(t => !['vsl', 'webinar', 'otro'].includes(t.id)).map(t => ({
+    setCustomTemplates(activeTemplates.filter(t => !BUILT_IN_TEMPLATE_IDS.includes(t.id)).map(t => ({
       id: t.id, name: t.name, icon: t.icon, description: t.description, taskCount: countByTemplate[t.id] || 0,
     })))
     setStoredTemplateTasks(storedTasks)
@@ -103,7 +113,12 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
   async function handleFunnelCreated(tpl: { id: string; name: string; icon: string; description: string }) {
     setShowCreateFunnel(false)
     await fetchCustomTemplates()
-    setForm(f => ({ ...f, templateId: tpl.id }))
+    setForm(f => ({ ...f, templateId: tpl.id, funnelType: funnelTypeForTemplate(tpl.id, tpl.name) || f.funnelType }))
+  }
+
+  // Al elegir plantilla se sugiere el tipo de embudo (se puede cambiar después en el selector).
+  function selectTemplate(templateId: string, templateName = '') {
+    setForm(f => ({ ...f, templateId, funnelType: funnelTypeForTemplate(templateId, templateName) || f.funnelType }))
   }
 
   // El grupo Cliente ya no es elegible: sus tareas siempre son del usuario cliente del proyecto.
@@ -234,6 +249,9 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
 
     const defaults: Record<string, string> = {}
     if (user) { defaults['lider'] = user.id }
+    // Responsables por defecto de src/data/templateOwners.ts (vacío = comportamiento de siempre).
+    const groupKeys = [...new Set(all.map(task => task.group || task.department))]
+    Object.assign(defaults, resolveTemplateOwners(groupKeys, [...(user ? [user] : []), ...teamMembers]))
     setClientUser(cUser as User)
     defaults['cliente'] = cUser.id
 
@@ -392,6 +410,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
       status: 'activo',
       source_template_id: form.templateId === 'otro' ? null : form.templateId,
       recording_mode: form.modalidad,
+      ...(hasStageColumns ? { stage: form.stage || null, funnel_type: form.funnelType || null } : {}),
     }).select().single()
     if (projErr || !project) { setError('Error al crear el proyecto'); setSaving(false); return }
 
@@ -624,7 +643,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
               <div className="grid grid-cols-3 gap-3">
                 {PROJECT_TEMPLATES.filter(t => t.id !== 'otro' && !archivedTemplateIds.has(t.id)).map(tpl => (
                   <button key={tpl.id} type="button"
-                    onClick={() => setForm({ ...form, templateId: tpl.id })}
+                    onClick={() => selectTemplate(tpl.id, tpl.name)}
                     className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
                       form.templateId === tpl.id
                         ? 'border-blue-600 bg-blue-50'
@@ -642,7 +661,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
 
                 {customTemplates.map(tpl => (
                   <button key={tpl.id} type="button"
-                    onClick={() => setForm({ ...form, templateId: tpl.id })}
+                    onClick={() => selectTemplate(tpl.id, tpl.name)}
                     className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
                       form.templateId === tpl.id
                         ? 'border-blue-600 bg-blue-50'
@@ -659,7 +678,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
 
                 {PROJECT_TEMPLATES.filter(t => t.id === 'otro' && !archivedTemplateIds.has(t.id)).map(tpl => (
                   <button key={tpl.id} type="button"
-                    onClick={() => setForm({ ...form, templateId: tpl.id })}
+                    onClick={() => selectTemplate(tpl.id, tpl.name)}
                     className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
                       form.templateId === tpl.id
                         ? 'border-blue-600 bg-blue-50'
@@ -696,6 +715,27 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
                     <span className={`block text-xs ${form.modalidad === 'remota' ? 'text-blue-100' : 'text-gray-400'}`}>El cliente graba y comparte el material</span>
                   </button>
                 </div>
+              </div>
+            )}
+
+            {hasStageColumns && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="block">
+                  <span className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Etapa</span>
+                  <select aria-label="Etapa del proyecto" value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Sin definir</option>
+                    {PROJECT_STAGES.map(stage => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Tipo de embudo</span>
+                  <select aria-label="Tipo de embudo" value={form.funnelType} onChange={e => setForm({ ...form, funnelType: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Sin definir</option>
+                    {FUNNEL_TYPES.map(type => <option key={type} value={type}>{FUNNEL_TYPE_LABELS[type]}</option>)}
+                  </select>
+                </label>
               </div>
             )}
 

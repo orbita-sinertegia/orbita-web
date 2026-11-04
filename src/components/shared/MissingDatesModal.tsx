@@ -37,7 +37,7 @@ export default function MissingDatesModal() {
 
   useEffect(() => {
     if (fetchedRef.current) return
-    if (!user || user.role !== 'team' || !currentSession || gateOpen) return
+    if (!user || user.role === 'client' || !currentSession || gateOpen) return
     fetchedRef.current = true
     let cancelled = false
     supabase

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, X, FolderKanban, ClipboardList, Users, UserRound, Workflow, LayoutGrid } from 'lucide-react'
+import { projectStatusLabel } from '../../lib/projectStatus'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -83,7 +84,7 @@ export default function GlobalSearch() {
       ])
       const [taskResponse, projectResponse, clientResponse, userResponse, funnelResponse] = responses
       const taskResults: Result[] = (taskResponse.data || []).filter((task: any) => matches(q, task.title, task.description, task.status, task.department, task.priority, task.project?.name, task.project?.client?.name, task.project?.client?.company)).slice(0, 8).map((task: any) => ({ id: task.id, type: 'task', title: task.title, subtitle: `${task.project?.client?.name || 'Sin cliente'} — ${task.project?.name || 'Sin proyecto'} · ${task.status}` }))
-      const projectResults: Result[] = (projectResponse.data || []).filter((project: any) => matches(q, project.name, project.description, project.status, project.client?.name, project.client?.company)).slice(0, 8).map((project: any) => ({ id: project.id, type: 'project', title: project.name, subtitle: `${project.client?.name || 'Sin cliente'} · ${project.status}` }))
+      const projectResults: Result[] = (projectResponse.data || []).filter((project: any) => matches(q, project.name, project.description, project.status, project.client?.name, project.client?.company)).slice(0, 8).map((project: any) => ({ id: project.id, type: 'project', title: project.name, subtitle: `${project.client?.name || 'Sin cliente'} · ${projectStatusLabel(project.status)}` }))
       const clientResults: Result[] = (clientResponse.data || []).filter((client: any) => matches(q, client.name, client.company, client.notes)).slice(0, 8).map((client: any) => ({ id: client.id, type: 'client', title: client.name, subtitle: client.company || 'Cliente' }))
       const personResults: Result[] = user?.role === 'client' ? [] : (userResponse.data || []).filter((person: any) => matches(q, person.full_name, person.email, person.role, person.department)).slice(0, 8).map((person: any) => ({ id: person.id, type: 'person', title: person.full_name, subtitle: `${person.department || 'Sin departamento'} · ${person.email || person.role}` }))
       const funnelResults: Result[] = user?.role !== 'admin' ? [] : (funnelResponse.data || []).filter((funnel: any) => matches(q, funnel.name, funnel.description)).slice(0, 8).map((funnel: any) => ({ id: funnel.id, type: 'funnel', title: funnel.name, subtitle: funnel.description || 'Plantilla de proyecto' }))

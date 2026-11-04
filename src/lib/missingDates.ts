@@ -78,7 +78,8 @@ export interface ShouldShowMissingDatesModalArgs {
 }
 
 export function shouldShowMissingDatesModal(args: ShouldShowMissingDatesModalArgs): boolean {
-  if (args.role !== 'team') return false
+  // Equipo y administradores (incluido el super admin) para SUS propias misiones; nunca clientes.
+  if (args.role === 'client') return false
   if (!args.hasSessionToday) return false
   if (args.checkInGateOpen) return false
   if (args.count <= 0) return false
