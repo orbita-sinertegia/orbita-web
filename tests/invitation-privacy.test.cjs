@@ -26,7 +26,26 @@ test('toda invitación de cliente nueva lleva correo', () => {
 test('el inicio de sesión explica cuando una cuenta no tiene invitación', () => {
   const page = read('src/components/auth/LoginPage.tsx')
   assert.match(page, /error_description/)
-  assert.match(page, /no tiene una invitación/)
+  assert.match(page, /NO_INVITATION_MESSAGE/)
+  assert.match(read('src/lib/signInErrors.ts'), /no tiene una invitación/)
+})
+
+test('Google inicia sesión con el botón oficial y un nonce, con redirección como respaldo', () => {
+  const google = read('src/components/auth/GoogleSignInButton.tsx')
+  assert.match(google, /accounts\.google\.com\/gsi\/client/)
+  assert.match(google, /signInWithIdToken\(\{ provider: 'google', token: credential, nonce: nonce\.raw \}\)/)
+  assert.match(google, /nonce: nonce\.hashed/)
+  assert.match(google, /signInWithOAuth/)
+})
+
+test('el inicio de sesión usa el diseño de cristal con la animación del logo', () => {
+  const page = read('src/components/auth/LoginPage.tsx')
+  const css = read('src/components/auth/LoginCristal.css')
+  assert.match(page, /className="login-cristal"/)
+  assert.match(page, /setView\('forgot'\)/)
+  assert.match(page, /setShowPassword/)
+  assert.match(css, /@keyframes orbita-giro/)
+  assert.match(css, /prefers-reduced-motion/)
 })
 
 test('el SQL quita el acceso abierto y solo se aplica si pasan sus pruebas', () => {
