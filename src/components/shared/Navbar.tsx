@@ -7,7 +7,7 @@ export default function Navbar() {
       <div className="flex items-center gap-3">
         <Logo size={36} />
         <div>
-          <h1 className="text-base font-bold text-gray-900 leading-tight">Sinertegia Launch 57</h1>
+          <h1 className="text-base font-bold text-gray-900 leading-tight">Órbita</h1>
           <p className="text-xs text-gray-400">Gestión de proyectos</p>
         </div>
       </div>

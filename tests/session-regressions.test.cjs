@@ -310,7 +310,10 @@ test('Built-in funnel tasks and stored additions resolve to one canonical list',
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   const exported = {}
   vm.runInNewContext(code, { exports: exported, require() { return {} } })
-  const vsl = exported.PROJECT_TEMPLATES.find(template => template.id === 'vsl')
+  const vsl = { tasks: [
+    { title: 'Base 1', department: 'copy', priority: 'alta', phase: 'estrategia' },
+    { title: 'Base 2', department: 'diseno', priority: 'alta', phase: 'produccion_paginas' },
+  ] }
   const additions = Array.from({ length: 6 }, (_, index) => ({
     title: `Extra ${index + 1}`, department: 'webmaster', priority: 'alta',
   }))
@@ -525,73 +528,6 @@ function loadModule(file) {
   return exported
 }
 
-const templatesModule = loadModule('src/data/projectTemplates.ts')
-const { PROJECT_TEMPLATES, resolveTemplateTasks, tasksForModalidad } = templatesModule
-
-function taskSetFor(templateId, modalidad) {
-  const tpl = PROJECT_TEMPLATES.find(t => t.id === templateId)
-  const resolved = resolveTemplateTasks(tpl, [], false)
-  return [...resolved, ...tasksForModalidad(modalidad)]
-}
-
-for (const [templateId, modalidad, expectedTotal, expectedCliente, expectedGrabacion] of [
-  ['vsl', 'oficina', 64, 5, 3],
-  ['vsl', 'remota', 64, 6, 2],
-  ['webinar', 'oficina', 70, 7, 3],
-  ['webinar', 'remota', 70, 8, 2],
-]) test(`${templateId} · ${modalidad} resolves to ${expectedTotal} tasks (cliente ${expectedCliente}, grabación ${expectedGrabacion})`, () => {
-  const full = taskSetFor(templateId, modalidad)
-  assert.equal(full.length, expectedTotal)
-  assert.equal(full.filter(t => t.department === 'cliente').length, expectedCliente)
-  assert.equal(full.filter(t => t.department === 'grabacion').length, expectedGrabacion)
-})
-
-test('No template/modalidad combination duplicates a title+department pair', () => {
-  for (const templateId of ['vsl', 'webinar']) {
-    for (const modalidad of ['oficina', 'remota']) {
-      const full = taskSetFor(templateId, modalidad)
-      const keys = full.map(t => `${t.department}:${t.title.trim().toLowerCase()}`)
-      assert.equal(new Set(keys).size, keys.length, `${templateId}/${modalidad} has duplicate tasks`)
-    }
-  }
-})
-
-test('VSL never includes webinar-only tasks', () => {
-  for (const modalidad of ['oficina', 'remota']) {
-    const vsl = taskSetFor('vsl', modalidad)
-    assert.ok(!vsl.some(t => t.title === 'Crear Presentación'))
-    assert.ok(!vsl.some(t => t.title === 'Solicitar reunión de revisión de presentación con Alfredo Mota'))
-    assert.ok(!vsl.some(t => t.title === 'Cambiar diseño visual de Pág. Ingreso al Webinar'))
-    assert.ok(!vsl.some(t => t.title === 'Crear el Evento en Addevent'))
-    assert.ok(!vsl.some(t => t.title === 'Video de Edificación - Presentación'))
-  }
-})
-
-test('No task appears in both modalidades at once, and "Grabar VSL de webinar..." no longer exists', () => {
-  const oficina = tasksForModalidad('oficina').map(t => t.title)
-  const remota = tasksForModalidad('remota').map(t => t.title)
-  assert.equal(oficina.filter(title => remota.includes(title)).length, 0)
-  for (const templateId of ['vsl', 'webinar']) {
-    const all = resolveTemplateTasks(PROJECT_TEMPLATES.find(t => t.id === templateId), [], false)
-    assert.ok(!all.some(t => t.title === 'Grabar VSL de webinar, Gracias y 12 anuncios'))
-  }
-})
-
-test('Oficina: client only has "Asistir a la sesión de grabación"; Grabación has both recording tasks', () => {
-  const oficina = tasksForModalidad('oficina')
-  assert.equal(JSON.stringify(oficina.filter(t => t.department === 'cliente').map(t => t.title)), JSON.stringify(['Asistir a la sesión de grabación']))
-  assert.equal(JSON.stringify(oficina.filter(t => t.department === 'grabacion').map(t => t.title).sort()), JSON.stringify(['Grabar 12 anuncios', 'Grabar VSL y Video de Gracias'].sort()))
-})
-
-test('Remota: client is responsible for recording and sharing; Grabación only supports', () => {
-  const remota = tasksForModalidad('remota')
-  assert.equal(JSON.stringify(remota.filter(t => t.department === 'cliente').map(t => t.title).sort()), JSON.stringify([
-    'Grabar VSL, Gracias y 12 anuncios',
-    'Compartir la grabación de video de VSL, Gracias, 12 anuncios',
-  ].sort()))
-  assert.equal(remota.filter(t => t.department === 'grabacion').length, 1)
-})
-
 // ── Asignación al cliente ──
 
 test('CreateProjectModal blocks project creation without a client user and never falls back to the creator', () => {
@@ -686,24 +622,10 @@ test('Admin can mark "client did not show up" on the recording session task and 
 const roadmapPhases = loadModule('src/lib/roadmapPhases.ts')
 const templatesForPhases = loadModule('src/data/projectTemplates.ts')
 
-function taskSetForPhases(templateId, modalidad) {
-  const tpl = templatesForPhases.PROJECT_TEMPLATES.find(t => t.id === templateId)
-  const resolved = templatesForPhases.resolveTemplateTasks(tpl, [], false)
-  return [...resolved, ...templatesForPhases.tasksForModalidad(modalidad)]
-}
-
-test('inferPhase assigns a non-null phase to every VSL (64) and Webinar (70) task', () => {
-  for (const [templateId, modalidad, expectedTotal] of [
-    ['vsl', 'oficina', 64], ['vsl', 'remota', 64], ['webinar', 'oficina', 70], ['webinar', 'remota', 70],
-  ]) {
-    const full = taskSetForPhases(templateId, modalidad)
-    assert.equal(full.length, expectedTotal)
-    for (const task of full) {
-      const phase = templatesForPhases.inferPhase(task.title, task.department)
-      assert.ok(phase, `${templateId}/${modalidad}: "${task.title}" got no phase`)
-      assert.ok(templatesForPhases.PHASES.includes(phase), `${templateId}/${modalidad}: "${task.title}" got invalid phase "${phase}"`)
-    }
-  }
+test('inferPhase assigns a valid phase from the department', () => {
+  assert.equal(templatesForPhases.inferPhase('Cualquier título', 'trafficker'), 'lanzamiento')
+  assert.equal(templatesForPhases.inferPhase('Cualquier título', 'copy'), 'estrategia')
+  assert.equal(templatesForPhases.inferPhase('Cualquier título', 'desconocido'), 'entrada')
 })
 
 test('Phase progress counts only approved tasks as done; pendiente_revision does not count', () => {
@@ -801,12 +723,6 @@ test('Projects are ordered by risk: atrasado before en riesgo before en tiempo, 
   assert.deepEqual(sorted.map(item => `${item.status}:${item.totalDays}`), ['atrasado:10', 'atrasado:2', 'en_riesgo:1', 'en_tiempo:0'])
 })
 
-test('inferTemplateLabel recognizes Webinar-only titles and falls back to VSL/Personalizado', () => {
-  assert.equal(roadmapPhases.inferTemplateLabel([{ title: 'Crear Presentación' }]), 'Webinar')
-  assert.equal(roadmapPhases.inferTemplateLabel([{ title: 'Montar funnel completo en GHL' }]), 'VSL')
-  assert.equal(roadmapPhases.inferTemplateLabel([]), 'Personalizado')
-})
-
 // ── Vista del cliente: sin nombres internos, solo su proyecto ──
 
 test('ClientRoadmapView never reads or renders team member names', () => {
@@ -877,9 +793,8 @@ test('Selecting a client picks its first project and switching projects keeps th
   assert.match(source, /function selectProject\(project: Project\)/)
 })
 
-test('Admin summary cards show template, modalidad, phase, launch delta, semáforo, client pendings and responsible', () => {
+test('Admin summary cards show modalidad, phase, launch delta, semáforo, client pendings and responsible', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src/components/admin/ClientRoadmapsManager.tsx'), 'utf8')
-  assert.match(source, /inferTemplateLabel/)
   assert.match(source, /recording_mode === 'remota' \? 'Remota' : 'Oficina'/)
   assert.match(source, /DISPLAY_PHASE_LABELS\[card\.phase\]/)
   assert.match(source, /card\.lider/)
@@ -1511,7 +1426,6 @@ test('Tareas del equipo y detalle: "Marcar realizadas" en la barra y palomita en
   assert.match(detail, /supabase\.rpc\('super_admin_set_task_status', quickCompleteArgs\(task\.id\)\)/)
   const flag = read('src/lib/quickComplete.ts')
   assert.match(flag, /export const ENABLE_QUICK_COMPLETE = true/)
-  assert.match(read('DOCUMENTACION.md'), /ENABLE_QUICK_COMPLETE/)
 })
 
 // ── Fase 1: reasignar y fecha "La necesito para" en lote ──

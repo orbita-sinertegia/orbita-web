@@ -1,5 +1,5 @@
 import type { Department, Project, Task } from '../types'
-import { PHASES, type Phase, inferPhase, WEBINAR_ONLY_TITLES } from '../data/projectTemplates'
+import { PHASES, type Phase, inferPhase } from '../data/projectTemplates'
 
 export { PHASES, type Phase }
 
@@ -195,13 +195,6 @@ export function buildMilestones(project: Pick<Project, 'recording_mode' | 'launc
   }
 
   return milestones
-}
-
-/** Heurística de plantilla para tarjetas de resumen: no hay columna que la guarde en projects. */
-export function inferTemplateLabel(tasks: Pick<Task, 'title'>[]): string {
-  if (tasks.some(task => WEBINAR_ONLY_TITLES.has(task.title))) return 'Webinar'
-  if (tasks.length > 0) return 'VSL'
-  return 'Personalizado'
 }
 
 export function dueLabel(commitmentDate: string, today: Date = new Date()): { text: string; late: boolean } {

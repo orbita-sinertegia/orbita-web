@@ -42,7 +42,7 @@ export default function ClientReportModal({ project, tasks, onClose }: Props) {
         titulo: `${project.client?.name} — ${project.name}`,
         subtitulo: 'Estado del embudo y producción de campaña',
         fecha: today.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-        pie: `Reporte ${project.client?.name} · Sinertegia Launch 57`,
+        pie: `Reporte ${project.client?.name} · Órbita`,
         completadas: completed.map(toReportTask),
         enProgreso: inProgress.map(toReportTask),
         pendientes: [...pending, ...blocked].map(toReportTask),
@@ -79,7 +79,7 @@ export default function ClientReportModal({ project, tasks, onClose }: Props) {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleExport} disabled={generatingPdf}
-              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-blue-700 to-red-600 px-3 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-60">
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-blue-700 to-blue-500 px-3 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-60">
               <Download size={13} /> {generatingPdf ? 'Generando...' : 'Exportar / Imprimir'}
             </button>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

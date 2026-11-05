@@ -611,7 +611,7 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
           </select>
         </div>
         <button onClick={() => setShowCreateTask(true)}
-          className="flex items-center gap-1.5 bg-gradient-to-r from-blue-700 to-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition">
+          className="flex items-center gap-1.5 bg-gradient-to-r from-blue-700 to-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition">
           <Plus size={14} /> Nueva tarea
         </button>
       </div>
