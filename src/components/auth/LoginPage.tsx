@@ -235,6 +235,12 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
             )}
           </div>
         )}
+
+        <p className="mt-6 text-center text-xs text-gray-500">
+          <a href="/privacidad.html" className="hover:underline">Política de privacidad</a>
+          {' · '}
+          <a href="/condiciones.html" className="hover:underline">Condiciones del servicio</a>
+        </p>
       </div>
     </div>
   )
