@@ -6,6 +6,7 @@ import { FUNNEL_TYPES, FUNNEL_TYPE_LABELS, PROJECT_STAGES, PROJECT_STAGE_LABELS 
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Department, Priority, User } from '../../types'
 import { resolveTemplateOwners } from '../../data/templateOwners'
+import { askInviteEmail } from '../../lib/inviteEmail'
 import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, inferPhase, funnelTypeForTemplate, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
 import CreateFunnelTemplateModal from './CreateFunnelTemplateModal'
 
@@ -142,8 +143,10 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
 
   async function inviteBlockedClient() {
     if (!blockedClientId) return
+    const email = askInviteEmail(blockedClientName)
+    if (!email) return
     setInvitingClient(true)
-    const { data } = await supabase.from('client_invitations').insert({ client_id: blockedClientId }).select('id').single()
+    const { data } = await supabase.from('client_invitations').insert({ client_id: blockedClientId, email }).select('id').single()
     if (data) setInviteLink(`${window.location.origin}?invite=${data.id}`)
     setInvitingClient(false)
   }
