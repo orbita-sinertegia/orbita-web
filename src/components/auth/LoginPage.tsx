@@ -52,7 +52,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
     setForgotLoading(true)
     setForgotError('')
     const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: 'https://agencia.sinertegia.com/',
+      redirectTo: `${window.location.origin}/`,
     })
     if (error) {
       setForgotError('No se pudo enviar el correo. Verifica la dirección e intenta de nuevo.')
@@ -63,7 +63,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
   }
 
   return (
-    <div className="min-h-screen relative bg-[#0b1230] flex items-center justify-center p-4 overflow-hidden">
+    <div className="min-h-screen relative bg-[#14082A] flex items-center justify-center p-4 overflow-hidden">
       <div className="absolute inset-0">
         <Suspense fallback={null}>
           <FloatingLines
@@ -75,7 +75,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
             interactive
             parallax
             animationSpeed={1}
-            linesGradient={['#1e3a8a', '#3b82f6', '#dc2626']}
+            linesGradient={['#581C87', '#A855F7', '#C084FC']}
           />
         </Suspense>
       </div>
@@ -83,8 +83,8 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
       <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
 
         <div className="flex flex-col items-center mb-8">
-          <img src={logoImg} alt="Sinertegia Logo" className="w-24 h-24 object-contain" />
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Sinertegia Launch 57</h1>
+          <img src={logoImg} alt="Órbita Logo" className="w-24 h-24 object-contain" />
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">Órbita</h1>
           <p className="text-sm text-gray-500 mt-1">Plataforma de gestión de proyectos</p>
         </div>
 
@@ -178,7 +178,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
+              className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
@@ -227,7 +227,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
                 <button
                   type="submit"
                   disabled={forgotLoading}
-                  className="w-full bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
+                  className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
                 >
                   {forgotLoading ? 'Enviando...' : 'Enviar link de recuperación'}
                 </button>

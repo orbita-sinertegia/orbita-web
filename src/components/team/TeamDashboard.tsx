@@ -192,7 +192,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
   }, [hiddenSections])
 
   useEffect(() => {
-    document.documentElement.classList.toggle('ui-compact', localStorage.getItem('sinertegia-compact') === 'true')
+    document.documentElement.classList.toggle('ui-compact', localStorage.getItem('orbita-compact') === 'true')
   }, [])
 
   useEffect(() => {
@@ -710,7 +710,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
           </div>
           <button
             onClick={() => setShowCreateTask(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
           >
             <Plus size={16} /> Nueva tarea
           </button>
@@ -723,7 +723,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
             {[
               { label: 'Total de tareas', value: stats.total, icon: ClipboardList, bg: '#EEE9FE', color: '#7C3AED' },
               { label: 'Pendientes', value: stats.pendiente, icon: Clock, bg: '#FEF0DE', color: '#EA580C' },
-              { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#E8EEFE', color: '#2757EB' },
+              { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#F3E8FF', color: '#9333EA' },
               { label: 'Completadas', value: stats.completada, icon: CheckCircle, bg: '#E4F7F0', color: '#0C8A66' },
               { label: 'Vencidas', value: stats.vencidas, icon: XCircle, bg: '#FCE4E8', color: '#E0304F' },
             ].map(({ label, value, icon: Icon, bg, color }) => (
@@ -743,11 +743,11 @@ export default function TeamDashboard({ embedded = false }: Props) {
               <p className="text-sm font-bold text-gray-800 mb-2 display">Resumen de progreso</p>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={weeklyProgress}>
-                  <defs><linearGradient id="adminProgressFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2757EB" stopOpacity={0.35} /><stop offset="95%" stopColor="#2757EB" stopOpacity={0} /></linearGradient></defs>
+                  <defs><linearGradient id="adminProgressFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#9333EA" stopOpacity={0.35} /><stop offset="95%" stopColor="#9333EA" stopOpacity={0} /></linearGradient></defs>
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
                   <Tooltip formatter={(value) => [value, 'Completadas']} />
-                  <Area type="monotone" dataKey="completadas" stroke="#2757EB" strokeWidth={2} fill="url(#adminProgressFill)" />
+                  <Area type="monotone" dataKey="completadas" stroke="#9333EA" strokeWidth={2} fill="url(#adminProgressFill)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -778,12 +778,12 @@ export default function TeamDashboard({ embedded = false }: Props) {
       <div className={`v2-shell ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <aside className="v2-sidebar">
           <div className="v2-brand">
-            <button type="button" className="v2-brand-mark" title="Sinertegia Launch 57">
+            <button type="button" className="v2-brand-mark" title="Órbita">
               <Logo size={26} />
             </button>
             {!sidebarCollapsed && (
               <div className="v2-brand-text">
-                <div className="v2-brand-name">Sinertegia Launch 57</div>
+                <div className="v2-brand-name">Órbita</div>
                 <div className="v2-brand-sub">Gestión de proyectos</div>
               </div>
             )}
@@ -930,7 +930,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
                 {[
                   { label: 'Total de tareas', value: stats.total, icon: ClipboardList, bg: '#EEE9FE', color: '#7C3AED' },
                   { label: 'Pendientes', value: stats.pendiente, icon: Clock, bg: '#FEF0DE', color: '#EA580C' },
-                  { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#E8EEFE', color: '#2757EB' },
+                  { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#F3E8FF', color: '#9333EA' },
                   { label: 'Completadas', value: stats.completada, icon: CheckCircle, bg: '#E4F7F0', color: '#0C8A66' },
                   { label: 'Vencidas', value: stats.vencidas, icon: XCircle, bg: '#FCE4E8', color: '#E0304F' },
                 ].map(({ label, value, icon: Icon, bg, color }) => (
@@ -954,14 +954,14 @@ export default function TeamDashboard({ embedded = false }: Props) {
                     <AreaChart data={weeklyProgress}>
                       <defs>
                         <linearGradient id="progressFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2757EB" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#2757EB" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#9333EA" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#9333EA" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="day" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
                       <Tooltip formatter={(v: any) => [v, 'Completadas']} />
-                      <Area type="monotone" dataKey="completadas" stroke="#2757EB" strokeWidth={2} fill="url(#progressFill)" />
+                      <Area type="monotone" dataKey="completadas" stroke="#9333EA" strokeWidth={2} fill="url(#progressFill)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

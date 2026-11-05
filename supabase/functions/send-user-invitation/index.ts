@@ -35,10 +35,10 @@ serve(async request => {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'Sinertegia Launch 57 <notificaciones@sinertegia.com>',
+        from: `Órbita <${Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev'}>`,
         to: [email],
-        subject: `Invitación para unirte como ${roleLabel} en Sinertegia`,
-        html: `<div style="font-family:Arial,sans-serif;background:#f4f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 30px;color:white;background:linear-gradient(120deg,#2456df,#643dbb,#e32636)"><b style="font-size:20px">Sinertegia Launch 57</b></div><div style="padding:30px"><h2 style="color:#111827">Hola, ${safeName}</h2><p style="color:#667085;line-height:1.6">Recibiste una invitación para formar parte de Sinertegia con el perfil <b>${safeRole}</b>.</p><a href="${inviteUrl}" style="display:inline-block;margin-top:16px;background:#2456df;color:white;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:bold">Aceptar invitación</a><p style="margin-top:24px;color:#98a2b3;font-size:12px">Si no esperabas esta invitación, puedes ignorar este correo.</p></div></div></div>`,
+        subject: `Invitación para unirte como ${roleLabel} en Órbita`,
+        html: `<div style="font-family:Arial,sans-serif;background:#f4f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 30px;color:white;background:linear-gradient(120deg,#9333EA,#6B21A8,#A855F7)"><b style="font-size:20px">Órbita</b></div><div style="padding:30px"><h2 style="color:#111827">Hola, ${safeName}</h2><p style="color:#667085;line-height:1.6">Recibiste una invitación para formar parte de Órbita con el perfil <b>${safeRole}</b>.</p><a href="${inviteUrl}" style="display:inline-block;margin-top:16px;background:#9333EA;color:white;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:bold">Aceptar invitación</a><p style="margin-top:24px;color:#98a2b3;font-size:12px">Si no esperabas esta invitación, puedes ignorar este correo.</p></div></div></div>`,
       }),
     })
     if (!response.ok) throw new Error(await response.text())

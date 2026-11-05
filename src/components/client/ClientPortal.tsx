@@ -393,7 +393,7 @@ export default function ClientPortal() {
           <div className="v2-brand">
             <div className="v2-brand-mark"><Logo size={26} /></div>
             <div className="v2-brand-text">
-              <div className="v2-brand-name">Sinertegia Launch 57</div>
+              <div className="v2-brand-name">Órbita</div>
               <div className="v2-brand-sub">Portal de cliente</div>
             </div>
           </div>

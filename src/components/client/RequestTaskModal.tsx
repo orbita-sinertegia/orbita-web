@@ -102,7 +102,7 @@ export default function RequestTaskModal({ client, project, onClose, onSent }: P
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-700 to-red-600 text-white">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-700 to-blue-500 text-white">
           <div>
             <h2 className="font-bold text-base">Solicitar una tarea</h2>
             <p className="text-xs text-white/70 mt-0.5">Tu solicitud será revisada por el líder del equipo</p>
@@ -192,7 +192,7 @@ export default function RequestTaskModal({ client, project, onClose, onSent }: P
             <button
               type="submit"
               disabled={sending || !title.trim() || !department}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-xl hover:opacity-90 transition disabled:opacity-50 mt-2"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-xl hover:opacity-90 transition disabled:opacity-50 mt-2"
             >
               {sending
                 ? <><Loader2 size={16} className="animate-spin" /> Enviando solicitud...</>

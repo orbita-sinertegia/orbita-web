@@ -471,7 +471,7 @@ export default function CreateTaskModal({ projects, teamMembers, defaultProjectI
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
             <button type="submit" disabled={saving}
-              className="px-6 py-2 bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
+              className="px-6 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
               {saving ? 'Creando...' : 'Crear tarea'}
             </button>
           </div>

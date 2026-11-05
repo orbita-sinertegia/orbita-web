@@ -218,7 +218,7 @@ export default function CreateFunnelTemplateModal({ onClose, onCreated, template
             Cancelar
           </button>
           <button onClick={() => void handleSave()} disabled={saving}
-            className="px-4 py-2 bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50">
+            className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50">
             {saving ? 'Guardando...' : template ? 'Guardar cambios' : 'Crear embudo'}
           </button>
         </div>

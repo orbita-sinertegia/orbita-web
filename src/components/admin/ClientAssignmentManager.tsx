@@ -56,7 +56,7 @@ export default function ClientAssignmentManager({ clients, teamMembers, onCreate
   async function generateInviteLink(clientId: string) {
     const { data } = await supabase.from('client_invitations').insert({ client_id: clientId }).select('id').single()
     if (!data) return
-    const url = `https://agencia.sinertegia.com?invite=${data.id}`
+    const url = `${window.location.origin}?invite=${data.id}`
     setGeneratedLinks(previous => ({ ...previous, [clientId]: url }))
     setInvitedClientIds(previous => new Set(previous).add(clientId))
   }

@@ -115,9 +115,8 @@ test('a future project start is respected', () => {
   assert.equal(plan.get(t.id).start, '2026-11-17')
 })
 
-test('the full VSL template gets an estimate for every task, all on working days, ending ~6-7 weeks out', () => {
-  const vsl = templates.PROJECT_TEMPLATES.find(t => t.id === 'vsl')
-  const tasks = [...vsl.tasks, ...templates.tasksForModalidad('oficina')].map((t, index) => ({ id: `v${index}`, title: t.title, department: t.department, phase: t.phase, status: 'pendiente' }))
+test('a full project gets an estimate for every task, all on working days, ending ~6-7 weeks out', () => {
+  const tasks = templates.PHASES.flatMap(phase => ['lider', 'copy', 'diseno'].map(department => ({ id: `${phase}-${department}`, title: `${phase} ${department}`, department, phase, status: 'pendiente' })))
   const plan = est.estimateProjectSchedule(tasks, { now: SUNDAY_NIGHT })
   assert.equal(plan.size, tasks.length)
   const ends = [...plan.values()].map(span => span.end).sort()

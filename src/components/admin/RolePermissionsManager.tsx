@@ -418,7 +418,7 @@ export default function RolePermissionsManager() {
         setSaving('')
         return
       }
-      url = `https://agencia.sinertegia.com?invite=${data.id}`
+      url = `${window.location.origin}?invite=${data.id}`
     } else {
       const { data, error: invitationError } = await supabase
         .from('team_invitations')
@@ -436,7 +436,7 @@ export default function RolePermissionsManager() {
         setSaving('')
         return
       }
-      url = `https://agencia.sinertegia.com?team_invite=${data.id}`
+      url = `${window.location.origin}?team_invite=${data.id}`
     }
     setInviteLink(url)
     const roleLabel = tab === 'admin' ? 'administrador' : tab === 'team' ? 'integrante del equipo' : 'cliente'

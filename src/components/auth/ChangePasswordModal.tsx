@@ -40,7 +40,7 @@ export default function ChangePasswordModal() {
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-blue-800 to-red-700 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
 
         <div className="flex flex-col items-center mb-6">
@@ -119,7 +119,7 @@ export default function ChangePasswordModal() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
+            className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
           >
             {loading ? 'Guardando...' : 'Guardar mi contraseña'}
           </button>

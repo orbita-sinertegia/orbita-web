@@ -1,5 +1,16 @@
-# sinertegia-launch
-Proyecto integrador Sinertegia Launch para la gestión colaborativa mediante GitHub Flow.
+# Órbita
+
+Plataforma web para gestionar proyectos, tareas, clientes y equipos de trabajo.
+
+Hecha con Vite, React, TypeScript y Supabase.
+
+## Cómo correrla en local
+
+1. Instala las dependencias con `npm install`.
+2. Copia `.env.example` a `.env` y escribe los datos de tu proyecto de Supabase.
+3. Arranca la app con `npm run dev`.
+
+Para revisar los cambios: `npm run build` compila la app y `npm test` corre las pruebas.
 
 ## Estrategia de ramas del equipo
 
