@@ -1,0 +1,259 @@
+.login-cristal {
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
+  width: min(400px, calc(100% - 32px));
+  margin: 58px auto 24px;
+  padding: 66px 24px 24px;
+  border: 1px solid #c49bec80;
+  border-radius: 26px;
+  background: rgb(47 24 77 / 90%);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 50px rgb(18 5 35 / 35%);
+  color: #fff7ff;
+}
+
+.login-cristal__emblema {
+  position: absolute;
+  top: -47px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  border-radius: 24px;
+  background: #f2e3ff;
+  box-shadow: 0 8px 24px rgb(30 8 55 / 30%);
+}
+
+.login-cristal__emblema img {
+  display: block;
+  object-fit: contain;
+  animation: orbita-giro 1.14s ease-in-out both;
+}
+
+@keyframes orbita-giro {
+  from {
+    opacity: 0;
+    transform: rotate(-130deg) scale(0.74);
+  }
+
+  42% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.login-cristal h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.login-cristal__subtitulo {
+  margin: 8px 0 22px;
+  color: #e6d1f7;
+  text-align: center;
+}
+
+.login-cristal__form {
+  display: grid;
+  gap: 8px;
+}
+
+.login-cristal :is(input, button) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1px solid #9a75ba;
+  border-radius: 10px;
+  background: #482d66;
+  color: inherit;
+  font: inherit;
+}
+
+.login-cristal button {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.login-cristal button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.login-cristal input::placeholder {
+  color: #dbc4ed;
+}
+
+.login-cristal :is(button, input, a):focus-visible {
+  outline: 2px solid #edc8ff;
+  outline-offset: 3px;
+}
+
+.login-cristal label {
+  display: block;
+}
+
+.login-cristal label:not(:first-child) {
+  margin-top: 6px;
+}
+
+.login-cristal__separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: #e6d1f7;
+  font-size: 0.85rem;
+}
+
+.login-cristal__separador::before,
+.login-cristal__separador::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #9a75ba;
+}
+
+.login-cristal .login-cristal__recuperar,
+.login-cristal .login-cristal__volver {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f0d2ff;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.login-cristal .login-cristal__recuperar {
+  justify-self: end;
+  margin: 4px 0 8px;
+}
+
+.login-cristal .login-cristal__volver {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.login-cristal :is(.login-cristal__recuperar, .login-cristal__volver):hover {
+  text-decoration: underline;
+}
+
+.login-cristal .login-cristal__entrar {
+  border: 0;
+  background: linear-gradient(110deg, #7626ba, #8a39c7);
+}
+
+.login-cristal .login-cristal__entrar:hover:not(:disabled) {
+  background: linear-gradient(110deg, #8330c9, #9747d6);
+}
+
+.login-cristal__google {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  color-scheme: light;
+}
+
+.login-cristal .login-cristal__google-alterno {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  color: #3c2a52;
+}
+
+.login-cristal__clave {
+  position: relative;
+}
+
+.login-cristal__clave input {
+  padding-right: 46px;
+}
+
+.login-cristal .login-cristal__ojo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  min-height: 46px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #e6d1f7;
+}
+
+.login-cristal__aviso {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid #fda4af80;
+  border-radius: 10px;
+  background: rgb(127 29 29 / 45%);
+  color: #ffe4e6;
+  font-size: 0.875rem;
+}
+
+.login-cristal__form .login-cristal__aviso {
+  margin: 0;
+}
+
+.login-cristal__listo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #86efac80;
+  border-radius: 10px;
+  background: rgb(20 83 45 / 45%);
+  color: #dcfce7;
+  font-size: 0.875rem;
+}
+
+.login-cristal__listo svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.login-cristal__titulo-secundario {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.login-cristal__texto {
+  margin: 0 0 14px;
+  color: #e6d1f7;
+  font-size: 0.875rem;
+}
+
+.login-cristal__legal {
+  margin: 20px 0 0;
+  color: #dbc4ed;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.login-cristal__legal a:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-cristal__emblema img {
+    animation: none;
+  }
+}
