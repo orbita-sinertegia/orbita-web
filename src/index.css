@@ -21,7 +21,7 @@ body {
 .ui-dark body, .ui-dark #root { background: #0b1220; color: #e2e8f0; }
 .ui-dark .bg-white,
 .ui-dark .bg-white\/80,
-.ui-dark .bg-white\/90 { background-color: #172033 !important; }
+.ui-dark .bg-white\/90 { background-color: #20122F !important; }
 .ui-dark .bg-slate-50,
 .ui-dark .bg-slate-50\/50,
 .ui-dark .bg-slate-50\/70 { background-color: #1e293b !important; }
@@ -55,8 +55,8 @@ body {
 
 /* Tonos semánticos adaptados para conservar contraste en superficies oscuras. */
 .ui-dark .bg-blue-50,
-.ui-dark .bg-blue-50\/40 { background-color: #172b50 !important; }
-.ui-dark .bg-blue-100 { background-color: #1e3a66 !important; }
+.ui-dark .bg-blue-50\/40 { background-color: #2A1648 !important; }
+.ui-dark .bg-blue-100 { background-color: #3B1A63 !important; }
 .ui-dark .bg-green-50,
 .ui-dark .bg-green-50\/60 { background-color: #12382f !important; }
 .ui-dark .bg-green-100 { background-color: #17483c !important; }
@@ -74,7 +74,7 @@ body {
 .ui-dark .text-blue-950,
 .ui-dark .text-blue-900,
 .ui-dark .text-blue-800,
-.ui-dark .text-blue-700 { color: #93c5fd !important; }
+.ui-dark .text-blue-700 { color: #D8B4FE !important; }
 .ui-dark .text-green-950,
 .ui-dark .text-green-900,
 .ui-dark .text-green-800,
@@ -121,7 +121,7 @@ body {
 /* Cronograma y estados: contraste específico para tema oscuro. */
 .ui-dark .bg-purple-200 { background-color: #513477 !important; }
 .ui-dark .bg-green-200 { background-color: #195844 !important; }
-.ui-dark .bg-blue-200 { background-color: #244c7c !important; }
+.ui-dark .bg-blue-200 { background-color: #4C1D95 !important; }
 .ui-dark .bg-orange-200 { background-color: #6a421f !important; }
 .ui-dark .bg-amber-200 { background-color: #644c19 !important; }
 .roadmap-grid { background-image: linear-gradient(to right, rgba(148,163,184,.28) 1px, transparent 1px); }
@@ -147,9 +147,9 @@ body {
 @media(max-width:640px){.team-load-view{padding-bottom:30px}.team-load-card{padding:16px}.team-load-summary{min-height:96px;padding:14px}.team-load-primary,.team-load-secondary{min-height:42px}}
 
 /* Tarea abierta desde una notificación */
-.notification-task-focus{position:relative;background:#eff6ff!important;box-shadow:inset 4px 0 #2563eb, inset 0 0 0 1px #93c5fd;animation:notification-task-pulse 1.4s ease-out 2}
-.notification-task-focus td:first-child::after{content:'Tarea asignada';display:inline-flex;margin-left:10px;border-radius:999px;background:#2563eb;padding:3px 8px;color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
-.ui-dark .notification-task-focus{background:#18345f!important;box-shadow:inset 4px 0 #60a5fa, inset 0 0 0 1px #3b82f6!important}
+.notification-task-focus{position:relative;background:#FAF5FF!important;box-shadow:inset 4px 0 #9333EA, inset 0 0 0 1px #D8B4FE;animation:notification-task-pulse 1.4s ease-out 2}
+.notification-task-focus td:first-child::after{content:'Tarea asignada';display:inline-flex;margin-left:10px;border-radius:999px;background:#9333EA;padding:3px 8px;color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
+.ui-dark .notification-task-focus{background:#18345f!important;box-shadow:inset 4px 0 #C084FC, inset 0 0 0 1px #A855F7!important}
 @keyframes notification-task-pulse{0%,100%{filter:none}50%{filter:brightness(1.12)}}
 
 /* Chat con clientes: tema oscuro consistente y navegación responsive. */
@@ -158,12 +158,12 @@ body {
 .ui-dark .client-chat-room,
 .ui-dark .client-chat-header,
 .ui-dark .client-chat-composer,
-.ui-dark .client-chat-menu{background:#172033!important;border-color:#354258!important}
+.ui-dark .client-chat-menu{background:#20122F!important;border-color:#354258!important}
 .ui-dark .client-chat-messages{background:#0f172a!important}
 .ui-dark .client-chat-bubble:not(.client-chat-bubble-me){background:#243047!important;border-color:#3d4b61!important;color:#f1f5f9!important}
-.ui-dark .client-chats-list{background:#172033;border-color:#354258}
+.ui-dark .client-chats-list{background:#20122F;border-color:#354258}
 .ui-dark .client-chats-panel{background:#111a2b!important}
-.ui-dark .client-chats-back{background:#172033!important;border-color:#45536b!important;color:#e2e8f0!important}
+.ui-dark .client-chats-back{background:#20122F!important;border-color:#45536b!important;color:#e2e8f0!important}
 
 @media(max-width:1100px){
   .client-chats-layout{grid-template-columns:minmax(0,1fr)}

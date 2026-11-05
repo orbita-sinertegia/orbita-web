@@ -110,7 +110,7 @@ export default function MissingDatesModal() {
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.92) 0%, rgba(185,28,28,0.88) 100%)', backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-700 to-red-600 px-6 py-5 text-white relative">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5 text-white relative">
           <button type="button" onClick={handleSkip} aria-label="Cerrar" className="absolute top-4 right-4 text-white/70 hover:text-white">
             <X size={18} />
           </button>
@@ -127,7 +127,7 @@ export default function MissingDatesModal() {
         {missions.length === 0 ? (
           <div className="p-6 text-center">
             <button type="button" onClick={() => setOpen(false)}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-700 to-red-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition">
+              className="w-full py-2.5 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition">
               Continuar
             </button>
           </div>
@@ -174,7 +174,7 @@ export default function MissingDatesModal() {
                 Lo hago después
               </button>
               <button type="button" onClick={saveAll} disabled={!anyDateChosen}
-                className="flex-1 py-2.5 bg-gradient-to-r from-blue-700 to-red-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50">
+                className="flex-1 py-2.5 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50">
                 Guardar todas
               </button>
             </div>

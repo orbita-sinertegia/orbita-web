@@ -82,7 +82,7 @@ export default function MentionInput({ value, onChange, onSend, onFileSelect, us
                 onMouseDown={e => { e.preventDefault(); selectUser(user) }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-blue-50 transition text-left"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-red-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {user.full_name.charAt(0).toUpperCase()}
                 </div>
                 <div>

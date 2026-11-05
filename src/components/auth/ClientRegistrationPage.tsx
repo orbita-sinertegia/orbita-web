@@ -98,18 +98,18 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-red-700 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-red-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-6">
           <img src={logoImg} alt="Logo" className="w-16 h-16 object-contain mb-3" />
-          <h1 className="text-xl font-bold text-gray-900">Sinertegia Launch 57</h1>
+          <h1 className="text-xl font-bold text-gray-900">Órbita</h1>
         </div>
 
         {inviteError ? (
@@ -122,7 +122,7 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
             <p className="text-5xl mb-4">🎉</p>
             <h2 className="text-lg font-bold text-gray-900 mb-2">¡Cuenta creada!</h2>
             <p className="text-sm text-gray-500 mb-4">Ya puedes acceder a tu portal de cliente.</p>
-            <a href="/" className="inline-block w-full bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-lg text-center hover:opacity-90 transition">
+            <a href="/" className="inline-block w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-lg text-center hover:opacity-90 transition">
               Ir al portal
             </a>
           </div>
@@ -200,7 +200,7 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-gradient-to-r from-blue-700 to-red-600 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
+                className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white font-semibold py-3 rounded-lg hover:opacity-90 transition disabled:opacity-60"
               >
                 {saving ? 'Creando cuenta...' : 'Crear mi cuenta'}
               </button>

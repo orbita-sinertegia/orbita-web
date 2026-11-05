@@ -130,7 +130,7 @@ export default function TeamCalendar({ teamMembers, adminMembers = [], tasks, on
         titulo: clientName,
         subtitulo: 'Estado del embudo y producción de campaña',
         fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }),
-        pie: `Reporte ${clientName} · Sinertegia Launch 57`,
+        pie: `Reporte ${clientName} · Órbita`,
         completadas: clientTasks.filter(task => task.status === 'completada').map(mapTask),
         enProgreso: clientTasks.filter(task => task.status === 'en_progreso').map(mapTask),
         pendientes: clientTasks.filter(task => task.status === 'pendiente' || task.status === 'bloqueada').map(mapTask),

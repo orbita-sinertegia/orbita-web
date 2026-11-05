@@ -1,6 +1,6 @@
 /**
  * TEMPORAL — "palomita verde" para marcar tareas como realizadas de un clic (solo super admin).
- * Tony la pidió solo por estos días, mientras se pone al día la aplicación.
+ * Pensada solo para una etapa temporal, mientras se pone al día la aplicación.
  * Para quitarla: poner ENABLE_QUICK_COMPLETE en false (o borrar este archivo y sus usos:
  * buscar "ENABLE_QUICK_COMPLETE" / "quickComplete").
  * Usa la misma RPC que el editor de estatus del super admin (super_admin_set_task_status),

@@ -5,12 +5,8 @@ import { projectStageColumnsExist } from '../../lib/projectColumns'
 import { FUNNEL_TYPES, FUNNEL_TYPE_LABELS, PROJECT_STAGES, PROJECT_STAGE_LABELS } from '../../lib/roadmapEstimate'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Department, Priority, User } from '../../types'
-<<<<<<< HEAD
-import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, tasksForModalidad, inferPhase, type Modalidad, type Phase } from '../../data/projectTemplates'
-=======
 import { resolveTemplateOwners } from '../../data/templateOwners'
-import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, tasksForModalidad, inferPhase, funnelTypeForTemplate, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
->>>>>>> bcbca98347ae75b5521f335cb6c106a437da8c55
+import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, inferPhase, funnelTypeForTemplate, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
 import CreateFunnelTemplateModal from './CreateFunnelTemplateModal'
 
 interface CustomTemplate { id: string; name: string; icon: string; description: string | null; taskCount: number }
@@ -148,7 +144,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
     if (!blockedClientId) return
     setInvitingClient(true)
     const { data } = await supabase.from('client_invitations').insert({ client_id: blockedClientId }).select('id').single()
-    if (data) setInviteLink(`https://agencia.sinertegia.com?invite=${data.id}`)
+    if (data) setInviteLink(`${window.location.origin}?invite=${data.id}`)
     setInvitingClient(false)
   }
 
@@ -226,20 +222,15 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
       return
     }
 
-    // tpl viene de PROJECT_TEMPLATES (vsl/webinar/otro); si es un embudo personalizado, tpl es undefined
-    // y todas sus tareas vienen de template_tasks (customDbTasks) en vez de tareas fijas en el código.
+    // tpl solo existe para "Sin plantilla"; en un embudo personalizado es undefined
+    // y todas sus tareas vienen de template_tasks (customDbTasks).
     const resolvedTasks = resolveTemplateTasks(
       tpl,
       customDbTasks,
       databaseTemplateIds.has(form.templateId),
     )
-    // La modalidad de grabación solo aplica a VSL/Webinar; se agrega aparte porque se
-    // elige por proyecto y no es parte de la definición fija de la plantilla.
-    const withModalidad = (form.templateId === 'vsl' || form.templateId === 'webinar')
-      ? [...resolvedTasks, ...tasksForModalidad(form.modalidad)]
-      : resolvedTasks
     const storedKeys = new Set(customDbTasks.map(task => `${task.department}:${task.title.trim().toLocaleLowerCase('es-MX')}`))
-    const all: CombinedTask[] = withModalidad.map(task => ({
+    const all: CombinedTask[] = resolvedTasks.map(task => ({
       ...task,
       isCustom: storedKeys.has(`${task.department}:${task.title.trim().toLocaleLowerCase('es-MX')}`),
     }))
@@ -510,16 +501,6 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
   const selectedCount = selectedTasks.size
   const selectedTpl = PROJECT_TEMPLATES.find(t => t.id === form.templateId)
     || customTemplates.find(t => t.id === form.templateId)
-  const effectiveTaskCount = (templateId: string) => {
-    const template = PROJECT_TEMPLATES.find(item => item.id === templateId)
-    const stored = storedTemplateTasks.filter(task => task.template_id === templateId)
-    return resolveTemplateTasks(
-      template,
-      stored,
-      databaseTemplateIds.has(templateId),
-    ).length
-  }
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-2xl shadow-2xl w-full flex flex-col max-h-[92vh] ${step === 2 ? 'max-w-3xl' : 'max-w-lg'}`}>
@@ -599,7 +580,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
                               )}
                               className="w-4 h-4 accent-blue-600"
                             />
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-red-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold shrink-0">
                               {member.full_name.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -641,24 +622,6 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Tipo de embudo *</label>
               <div className="grid grid-cols-3 gap-3">
-                {PROJECT_TEMPLATES.filter(t => t.id !== 'otro' && !archivedTemplateIds.has(t.id)).map(tpl => (
-                  <button key={tpl.id} type="button"
-                    onClick={() => selectTemplate(tpl.id, tpl.name)}
-                    className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
-                      form.templateId === tpl.id
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
-                    }`}>
-                    <p className="text-2xl mb-1">{tpl.icon}</p>
-                    <p className="font-semibold text-sm text-gray-800">{tpl.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-tight">{tpl.description}</p>
-                    {templatesLoaded && effectiveTaskCount(tpl.id) > 0 && (
-                      <p className="text-xs font-semibold text-blue-500 mt-2">{effectiveTaskCount(tpl.id)} tareas</p>
-                    )}
-                    {!templatesLoaded && <p className="mt-2 text-xs font-medium text-gray-400">Cargando tareas...</p>}
-                  </button>
-                ))}
-
                 {customTemplates.map(tpl => (
                   <button key={tpl.id} type="button"
                     onClick={() => selectTemplate(tpl.id, tpl.name)}
@@ -698,25 +661,6 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
                 </button>
               </div>
             </div>
-
-            {/* Modalidad de grabación — solo aplica a VSL/Webinar */}
-            {(form.templateId === 'vsl' || form.templateId === 'webinar') && (
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Modalidad de grabación *</label>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setForm({ ...form, modalidad: 'oficina' })}
-                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition text-left px-3 ${form.modalidad === 'oficina' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    <span className="block font-semibold">🏢 Oficina</span>
-                    <span className={`block text-xs ${form.modalidad === 'oficina' ? 'text-blue-100' : 'text-gray-400'}`}>Grabación es responsable; el cliente solo asiste</span>
-                  </button>
-                  <button type="button" onClick={() => setForm({ ...form, modalidad: 'remota' })}
-                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition text-left px-3 ${form.modalidad === 'remota' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    <span className="block font-semibold">🌐 Remota</span>
-                    <span className={`block text-xs ${form.modalidad === 'remota' ? 'text-blue-100' : 'text-gray-400'}`}>El cliente graba y comparte el material</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
             {hasStageColumns && (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -768,7 +712,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
               {!blockedNoClientUser && (
                 <button type="button" onClick={handleContinue} disabled={loadingTasks || !templatesLoaded || checkingClientUser || saving}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
+                  className="px-6 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
                   {!templatesLoaded ? 'Cargando embudos...' : checkingClientUser ? 'Verificando cliente...' : loadingTasks || saving ? 'Cargando...' : form.templateId === 'otro' && mode === 'existing' ? 'Crear proyecto' : mode === 'new' ? 'Guardar cliente y continuar' : 'Siguiente → Seleccionar tareas'}
                 </button>
               )}
@@ -994,7 +938,7 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">← Volver</button>
                 <button onClick={() => handleCreate()} disabled={saving || selectedCount === 0}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
+                  className="px-6 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60">
                   {saving ? 'Creando...' : `Crear proyecto con ${selectedCount} tareas`}
                 </button>
               </div>
