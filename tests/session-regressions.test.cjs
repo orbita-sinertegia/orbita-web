@@ -452,7 +452,7 @@ const projectFile = 'src/components/admin/ProjectDetail.tsx'
 function buttonText(node, text) {
   return node.type === 'button' && [node.props.children].flat().includes(text)
 }
-const superAdminAuth = { user: { id: 'tony', role: 'admin', is_super_admin: true, active: true } }
+const superAdminAuth = { user: { id: 'valeria', role: 'admin', is_super_admin: true, active: true } }
 function openProjectMenu(h) {
   find(h.render(), node => node.props?.['aria-label'] === 'Opciones del proyecto').props.onClick()
 }
@@ -1240,11 +1240,11 @@ test('TeamTasksManager: casillas, seleccionar todas y barra de acciones (elimina
 // ─────────────────────────────────────────────────────────────────────────
 
 const inlineTasks = [
-  { id: 'i-1', title: 'Brief', status: 'pendiente', priority: 'alta', department: 'lider', project_id: 'project-1', assigned_to: 'tony', assignee: { id: 'tony', full_name: 'Tony Rubio' }, needed_date: '2026-11-10' },
+  { id: 'i-1', title: 'Brief', status: 'pendiente', priority: 'alta', department: 'lider', project_id: 'project-1', assigned_to: 'valeria', assignee: { id: 'valeria', full_name: 'Valeria Ruiz' }, needed_date: '2026-11-10' },
   { id: 'i-2', title: 'Hecha', status: 'completada', priority: 'media', department: 'copy', project_id: 'project-1', assigned_to: 'dani', assignee: { id: 'dani', full_name: 'Dani' } },
   { id: 'i-3', title: 'Del cliente', status: 'pendiente', priority: 'media', department: 'cliente', project_id: 'project-1', assigned_to: 'cli', assignee: { id: 'cli', full_name: 'Cliente' } },
 ]
-const inlineMembers = [{ id: 'tony', full_name: 'Tony Rubio', active: true }, { id: 'dani', full_name: 'Dani', active: true }, { id: 'fabi', full_name: 'Fabi', active: true }, { id: 'old', full_name: 'Ex', active: false }]
+const inlineMembers = [{ id: 'valeria', full_name: 'Valeria Ruiz', active: true }, { id: 'dani', full_name: 'Dani', active: true }, { id: 'fabi', full_name: 'Fabi', active: true }, { id: 'old', full_name: 'Ex', active: false }]
 const inlineEditor = (prefix, title) => node => typeof node.props?.onSave === 'function' && node.props?.label === `${prefix} de ${title}`
 const adminAuth = { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }
 
@@ -1275,7 +1275,7 @@ test('Edición en línea: el equipo solo ve texto; admins editan tareas abiertas
 test('Edición en línea: opciones de persona (solo activos), depto sin "cliente" y las 4 prioridades', () => {
   const h = harness(projectFile, [], [], superAdminAuth, { ...projectProps, tasks: inlineTasks, teamMembers: inlineMembers })
   const people = find(h.render(), inlineEditor('persona asignada', 'Brief')).props.options.map(o => o.value)
-  assert.deepEqual([...people].sort(), ['dani', 'fabi', 'tony'])
+  assert.deepEqual([...people].sort(), ['dani', 'fabi', 'valeria'])
   assert.ok(!people.includes('old'), 'sin inactivos')
   assert.ok(!people.includes('cli'), 'sin el usuario cliente')
   const depts = find(h.render(), inlineEditor('departamento', 'Brief')).props.options.map(o => o.value)

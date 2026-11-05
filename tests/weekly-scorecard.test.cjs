@@ -26,8 +26,8 @@ const WEEK = '2026-11-04' // cualquier día de la semana lun 2 – sáb 7 nov
 const plain = value => JSON.parse(JSON.stringify(value))
 
 let n = 0
-const task = (extra = {}) => ({ id: `t${++n}`, project_id: 'p1', title: `Tarea ${n}`, department: 'edicion', status: 'completada', assigned_to: 'tony', created_at: '2026-11-01T15:00:00Z', ...extra })
-const tony = { id: 'tony', department: 'edicion' }
+const task = (extra = {}) => ({ id: `t${++n}`, project_id: 'p1', title: `Tarea ${n}`, department: 'edicion', status: 'completada', assigned_to: 'valeria', created_at: '2026-11-01T15:00:00Z', ...extra })
+const valeria = { id: 'valeria', department: 'edicion' }
 
 test('week range is Monday–Saturday (+ Sunday for deliveries) in CDMX', () => {
   assert.deepEqual(plain(sc.weekRange('2026-11-08')), { monday: '2026-11-02', saturday: '2026-11-07', sunday: '2026-11-08', workdays: ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07'] })
@@ -56,8 +56,8 @@ test('completion day uses completion_date, or updated_at in CDMX (20:00 CDMX is 
 
 test('goal: 8 ads/week, 6 delivered → 75% red; person goal beats department goal', () => {
   const tasks = [task({ title: 'Editar 6 anuncios — ronda 1', completion_date: '2026-11-04', commitment_date: '2026-11-05' })]
-  const goals = [{ department: 'edicion', work_type: 'anuncio', weekly_target: 12 }, { user_id: 'tony', work_type: 'anuncio', weekly_target: 8 }]
-  const m = sc.computeMemberWeek(tony, tasks, [], goals, WEEK, { now: NOW })
+  const goals = [{ department: 'edicion', work_type: 'anuncio', weekly_target: 12 }, { user_id: 'valeria', work_type: 'anuncio', weekly_target: 8 }]
+  const m = sc.computeMemberWeek(valeria, tasks, [], goals, WEEK, { now: NOW })
   assert.equal(m.byType.anuncio.units, 6)
   assert.equal(m.goalPct, 75)
   assert.equal(m.semaphore, 'rojo')
@@ -73,10 +73,10 @@ test('points goal uses weights (VSL=3, ad=1); without goals there is no semaphor
     task({ title: 'Editar 6 anuncios — ronda 2', completion_date: '2026-11-06' }),
     task({ title: 'Editar VSL principal', completion_date: '2026-10-30' }), // semana anterior
   ]
-  const withGoal = sc.computeMemberWeek(tony, tasks, [], [{ user_id: 'tony', work_type: 'puntos', weekly_target: 9 }], WEEK, { now: NOW })
+  const withGoal = sc.computeMemberWeek(valeria, tasks, [], [{ user_id: 'valeria', work_type: 'puntos', weekly_target: 9 }], WEEK, { now: NOW })
   assert.equal(withGoal.completedPoints, 9)
   assert.equal(withGoal.goalPct, 100)
-  const custom = sc.computeMemberWeek(tony, tasks, [], [], WEEK, { now: NOW, weights: { ...sc.DEFAULT_WEIGHTS, vsl: 5 } })
+  const custom = sc.computeMemberWeek(valeria, tasks, [], [], WEEK, { now: NOW, weights: { ...sc.DEFAULT_WEIGHTS, vsl: 5 } })
   assert.equal(custom.completedPoints, 11)
   assert.equal(custom.goalPct, null)
   assert.equal(custom.semaphore, null)
@@ -89,7 +89,7 @@ test('on-time %: completed on/before commitment_date; client-caused delays exclu
     task({ completion_date: '2026-11-05', commitment_date: '2026-11-04' }),
     task({ completion_date: '2026-11-06', commitment_date: '2026-11-02', delay_responsible: 'cliente' }),
   ]
-  const m = sc.computeMemberWeek(tony, tasks, [], [], WEEK, { now: NOW })
+  const m = sc.computeMemberWeek(valeria, tasks, [], [], WEEK, { now: NOW })
   assert.equal(m.onTimeEvaluated, 2)
   assert.equal(m.onTimeCount, 1)
   assert.equal(m.onTimePct, 50)
@@ -102,7 +102,7 @@ test('first-pass approval: rework task, internal changes or client changes break
   const rework = task({ title: '🔄 Retrabajo: Editar video de Gracias', completion_date: '2026-11-05' })
   const clientChanges = task({ title: 'Editar 6 anuncios — ronda 1', completion_date: '2026-11-04', change_count: 1 })
   const pending = task({ title: 'Editar 6 anuncios — ronda 2', completion_date: '2026-11-06', review_status: 'pendiente_revision' })
-  const m = sc.computeMemberWeek(tony, [ok, reworked, rework, clientChanges, pending], [], [], WEEK, { now: NOW })
+  const m = sc.computeMemberWeek(valeria, [ok, reworked, rework, clientChanges, pending], [], [], WEEK, { now: NOW })
   assert.equal(m.reworkCount, 1)
   assert.equal(m.completedCount, 4)
   assert.equal(m.firstPassEvaluated, 3)
@@ -115,28 +115,28 @@ test('average delivery time from start_date (or creation) to completion', () => 
     task({ start_date: '2026-11-02', completion_date: '2026-11-05' }),
     task({ created_at: '2026-11-03T03:00:00Z', completion_date: '2026-11-03' }), // creada 2 nov 21:00 CDMX
   ]
-  const m = sc.computeMemberWeek(tony, tasks, [], [], WEEK, { now: NOW })
+  const m = sc.computeMemberWeek(valeria, tasks, [], [], WEEK, { now: NOW })
   assert.equal(m.avgDeliveryDays, 2)
 })
 
 test('assigned load and under-utilized vs underperforming flags', () => {
-  const goals = [{ user_id: 'tony', work_type: 'anuncio', weekly_target: 12 }]
+  const goals = [{ user_id: 'valeria', work_type: 'anuncio', weekly_target: 12 }]
   const light = [task({ title: 'Editar 6 anuncios — ronda 1', completion_date: '2026-11-04', commitment_date: '2026-11-04' })]
-  const m1 = sc.computeMemberWeek(tony, light, [], goals, WEEK, { now: NOW })
+  const m1 = sc.computeMemberWeek(valeria, light, [], goals, WEEK, { now: NOW })
   assert.equal(m1.assignedCount, 1)
   assert.equal(m1.loadFlag, 'subutilizado')
   const heavy = [...light, task({ title: 'Editar 6 anuncios — ronda 2', status: 'en_progreso', commitment_date: '2026-11-06' }), task({ title: 'Editar 6 anuncios — ronda 3', status: 'pendiente', commitment_date: '2026-11-07' })]
-  const m2 = sc.computeMemberWeek(tony, heavy, [], goals, WEEK, { now: NOW })
+  const m2 = sc.computeMemberWeek(valeria, heavy, [], goals, WEEK, { now: NOW })
   assert.equal(m2.assignedCount, 3)
   assert.equal(m2.completedOfAssigned, 1)
   assert.equal(m2.loadFlag, 'bajo_rendimiento')
-  assert.equal(sc.computeMemberWeek(tony, [], [], [], WEEK, { now: NOW }).loadFlag, 'sin_carga')
+  assert.equal(sc.computeMemberWeek(valeria, [], [], [], WEEK, { now: NOW }).loadFlag, 'sin_carga')
 })
 
 test('attendance and punctuality from asistencia_rango (Mon–Sat, pending/rest days ignored)', () => {
-  const day = (date, estado, laborable = true) => ({ user_id: 'tony', date, estado, laborable })
+  const day = (date, estado, laborable = true) => ({ user_id: 'valeria', date, estado, laborable })
   const rows = [day('2026-11-02', 'a_tiempo'), day('2026-11-03', 'retardo'), day('2026-11-04', 'sin_registro'), day('2026-11-05', 'a_tiempo'), day('2026-11-06', 'a_tiempo'), day('2026-11-07', 'pendiente'), day('2026-11-08', 'descanso', false)]
-  const m = sc.computeMemberWeek(tony, [], rows, [], WEEK, { now: NOW })
+  const m = sc.computeMemberWeek(valeria, [], rows, [], WEEK, { now: NOW })
   assert.equal(m.scheduledDays, 5)
   assert.equal(m.attendedDays, 4)
   assert.equal(m.attendancePct, 80)
@@ -153,7 +153,7 @@ test('stuck tasks: in progress > 7 days, blocked, or no date; archived excluded 
     task({ status: 'pendiente', archived_at: '2026-11-03T00:00:00Z' }),
     task({ completion_date: '2026-11-03', archived_at: '2026-11-04T00:00:00Z' }),
   ]
-  const m = sc.computeMemberWeek(tony, tasks, [], [], WEEK, { now: NOW })
+  const m = sc.computeMemberWeek(valeria, tasks, [], [], WEEK, { now: NOW })
   assert.deepEqual(plain(m.stuck), { inProgressTooLong: 1, blocked: 1, undated: 1, total: 3 })
   assert.equal(m.completedCount, 0)
 })
