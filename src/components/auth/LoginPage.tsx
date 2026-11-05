@@ -11,12 +11,24 @@ interface Props {
   licenseSuspended?: boolean
 }
 
+// Supabase regresa aquí con el error cuando rechaza crear una cuenta (por ejemplo, con Google).
+function readSignInError(): string {
+  const params = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const description = params.get('error_description') || hash.get('error_description')
+  if (!description) return ''
+  window.history.replaceState(null, '', window.location.pathname)
+  return /database error|invitaci/i.test(description)
+    ? 'Esta cuenta no tiene una invitación. Pídele a tu administrador un enlace de invitación y regístrate desde ahí.'
+    : 'No se pudo iniciar sesión. Intenta de nuevo.'
+}
+
 export default function LoginPage({ unauthorizedEmail, deactivatedEmail, licenseSuspended }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(readSignInError)
   const [googleLoading, setGoogleLoading] = useState(false)
 
   const [view, setView] = useState<'login' | 'forgot'>('login')

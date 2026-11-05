@@ -9,9 +9,10 @@ interface Props {
 
 interface InviteData {
   id: string
+  email: string | null
   used: boolean
-  permissions: Record<string, boolean> | null
-  client: { id: string; name: string; company: string }
+  client_name: string
+  client_company: string
 }
 
 export default function ClientRegistrationPage({ inviteToken }: Props) {
@@ -19,7 +20,6 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
   const [inviteError, setInviteError] = useState('')
   const [form, setForm] = useState({
     full_name: '',
-    email: '',
     password: '',
     confirm: '',
   })
@@ -35,10 +35,12 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
   }, [inviteToken])
 
   async function loadInvite() {
-    const { data, error } = await supabase.from('client_invitations').select('id, used, permissions, client:clients(id, name, company)').eq('id', inviteToken).single()
+    const { data, error } = await supabase.rpc('get_client_invitation', { p_invitation_id: inviteToken }).single()
 
     if (error || !data) {
       setInviteError('Este link de invitación no es válido.')
+    } else if (!(data as any).email) {
+      setInviteError('Este link no tiene un correo asignado. Contacta a tu asesor para obtener uno nuevo.')
     } else if ((data as any).used) {
       setInviteError('Este link ya fue utilizado. Contacta a tu asesor para obtener uno nuevo.')
     } else {
@@ -70,7 +72,7 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
 
       // 1. Crear cuenta en Supabase Auth
       const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email: form.email,
+        email: invite!.email as string,
         password: form.password,
       })
 
@@ -130,8 +132,8 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
           <>
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6 text-center">
               <p className="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-0.5">Invitación para</p>
-              <p className="text-base font-bold text-blue-800">{invite?.client.name}</p>
-              <p className="text-xs text-blue-600">{invite?.client.company}</p>
+              <p className="text-base font-bold text-blue-800">{invite?.client_name}</p>
+              <p className="text-xs text-blue-600">{invite?.client_company}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -148,15 +150,9 @@ export default function ClientRegistrationPage({ inviteToken }: Props) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="tu@correo.com"
-                />
+                <p className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</p>
+                <p className="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-700 break-all">{invite?.email}</p>
+                <p className="mt-1 text-xs text-gray-500">Esta invitación es solo para este correo.</p>
               </div>
 
               <div>

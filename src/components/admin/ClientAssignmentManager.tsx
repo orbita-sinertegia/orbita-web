@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Copy, Link, Mail, Map as MapIcon, Plus, Search, UserPlus, Workflow, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { askInviteEmail } from '../../lib/inviteEmail'
 import type { Client, User } from '../../types'
 import UserAvatar from '../shared/UserAvatar'
 
@@ -54,7 +55,9 @@ export default function ClientAssignmentManager({ clients, teamMembers, onCreate
   }
 
   async function generateInviteLink(clientId: string) {
-    const { data } = await supabase.from('client_invitations').insert({ client_id: clientId }).select('id').single()
+    const email = askInviteEmail()
+    if (!email) return
+    const { data } = await supabase.from('client_invitations').insert({ client_id: clientId, email }).select('id').single()
     if (!data) return
     const url = `${window.location.origin}?invite=${data.id}`
     setGeneratedLinks(previous => ({ ...previous, [clientId]: url }))
