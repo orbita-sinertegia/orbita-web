@@ -1,5 +1,5 @@
 -- ============================================================================
--- NO EJECUTAR TODAVÍA — requiere aprobación de Tony y probar la app (equipo,
+-- NO EJECUTAR TODAVÍA — requiere aprobación y probar la app (equipo,
 -- cliente y admin) antes. No está conectado a ningún flujo ni migración.
 -- ============================================================================
 --

@@ -1,9 +1,9 @@
--- NO EJECUTAR sin revisión de Tony.
+-- NO EJECUTAR sin revisión.
 -- Agrega la columna de fase a las tareas para la hoja de ruta por fases (FASE 2).
 -- Los proyectos existentes quedan con phase = NULL; la vista infiere la fase con
 -- inferPhase() (src/data/projectTemplates.ts) sin necesidad de este backfill para
 -- funcionar. El backfill real (para que quede guardada en la base) está en
--- sql/2026-10-22_backfill_fase_tareas.sql, aparte, para que Tony lo revise primero.
+-- un script aparte, revisado antes de correrlo.
 begin;
 
 alter table public.tasks
