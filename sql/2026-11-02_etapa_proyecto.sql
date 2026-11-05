@@ -1,4 +1,4 @@
--- NO EJECUTAR sin revisión de Tony. Correr antes sql/2026-11-02_etapa_proyecto_00_revision.sql.
+-- NO EJECUTAR sin revisión. Correr antes sql/2026-11-02_etapa_proyecto_00_revision.sql.
 -- Agrega a projects:
 --   stage       'en_proceso' | 'corriendo' (NULL = sin definir; se estima igual que en proceso)
 --   funnel_type 'low2funnel' | 'vsl_high_ticket' | 'high_ticket' | 'restaurante' | 'webinar' | 'otro'
@@ -30,7 +30,7 @@ comment on column public.projects.funnel_type is 'Tipo de embudo; decide la dura
 
 commit;
 
--- Después (aparte, con la lista de Tony y tras revisar los nombres con
+-- Después (aparte, con la lista de clientes y tras revisar los nombres con
 -- /workspace/cc/serve/clientes_revision.sql) se puede marcar la etapa, por ejemplo:
 --   update public.projects p set stage = 'corriendo'
 --   from public.clients c

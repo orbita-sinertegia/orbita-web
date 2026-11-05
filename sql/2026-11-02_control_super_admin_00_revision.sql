@@ -1,7 +1,7 @@
 -- SOLO LECTURA. Revisión previa a sql/2026-11-02_control_super_admin.sql.
 -- Un solo resultado (el editor de Supabase muestra solo el último). No modifica nada.
 -- Esperado:
---   super_admins_activos = 1 y tony_es_super_admin = true
+--   super_admins_activos = 1
 --   fn_is_active_super_admin / fn_super_admin_set_task_status / trigger_projects_status /
 --   trigger_projects_delete = false (aún no existen)
 --   tipo_projects_status y tipo_tasks_status: el tipo real de las columnas (text o enum)
@@ -9,9 +9,6 @@
 --   proyectos_<estado>: cuántos hay en cada estado, y la lista de pausados / finalizados / Glish
 select 'super_admins_activos' as revision,
        (select count(*) from public.users where is_super_admin = true and coalesce(active, true))::text as valor
-union all
-select 'tony_es_super_admin',
-       coalesce((select (is_super_admin and coalesce(active, true))::text from public.users where id = '35ce6105-1918-4922-b261-34b676b7b735'), '(no encontrado)')
 union all
 select 'fn_is_active_super_admin', exists (select 1 from pg_proc where proname = 'is_active_super_admin' and pronamespace = 'public'::regnamespace)::text
 union all
