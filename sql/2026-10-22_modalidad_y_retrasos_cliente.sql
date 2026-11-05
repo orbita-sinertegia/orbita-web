@@ -1,4 +1,4 @@
--- NO EJECUTAR sin revisión de Tony.
+-- NO EJECUTAR sin revisión.
 -- Requiere correr PRIMERO (y revisar) sql/2026-10-22_reasignar_tareas_cliente.sql,
 -- porque el trigger de la sección 4 rechaza cualquier escritura de una tarea de depto
 -- "cliente" que no quede asignada al usuario cliente del proyecto — si queda una tarea
