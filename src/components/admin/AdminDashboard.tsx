@@ -119,7 +119,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'permisos', label: 'Usuarios y permisos', icon: KeyRound },
 ]
 
-const AVATAR_COLORS = ['#2757EB', '#0EA5E9', '#EC4899', '#12B886', '#F59E0B', '#8B5CF6', '#EF4444', '#0891B2', '#DB2777']
+const AVATAR_COLORS = ['#9333EA', '#0EA5E9', '#EC4899', '#12B886', '#F59E0B', '#8B5CF6', '#EF4444', '#0891B2', '#DB2777']
 
 function initialsOf(name: string): string {
   return name
@@ -400,12 +400,12 @@ export default function AdminDashboard() {
         {/* ── Sidebar ── */}
         <aside className="v2-sidebar">
           <div className="v2-brand">
-            <button type="button" className="v2-brand-mark" title="Sinertegia Launch 57">
+            <button type="button" className="v2-brand-mark" title="Órbita">
               <Logo size={26} />
             </button>
             {!sidebarCollapsed && (
               <div className="v2-brand-text">
-                <div className="v2-brand-name">Sinertegia Launch 57</div>
+                <div className="v2-brand-name">Órbita</div>
                 <div className="v2-brand-sub">Gestión de proyectos</div>
               </div>
             )}

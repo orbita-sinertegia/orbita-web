@@ -25,7 +25,7 @@ export default function CheckInModal() {
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
         style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.92) 0%, rgba(185,28,28,0.88) 100%)', backdropFilter: 'blur(4px)' }}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center">
-          <div className="bg-gradient-to-r from-blue-700 to-red-600 px-6 py-5 text-white">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5 text-white">
             <p className="text-3xl mb-1">💻</p>
             <h2 className="text-xl font-bold">Hola, {user?.full_name?.split(' ')[0]}</h2>
           </div>
@@ -46,7 +46,7 @@ export default function CheckInModal() {
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
         style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.92) 0%, rgba(185,28,28,0.88) 100%)', backdropFilter: 'blur(4px)' }}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center">
-          <div className="bg-gradient-to-r from-blue-700 to-red-600 px-6 py-5 text-white">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5 text-white">
             <CheckCircle2 size={36} className="mx-auto mb-1" />
             <h2 className="text-xl font-bold">¡Listo, {user?.full_name?.split(' ')[0]}!</h2>
           </div>
@@ -54,7 +54,7 @@ export default function CheckInModal() {
             <p className="text-sm text-gray-700 font-medium mb-4">{lastCheckInNotice}</p>
             <button
               onClick={dismissCheckInNotice}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-700 to-red-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition"
+              className="w-full py-2.5 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition"
             >
               Continuar
             </button>
@@ -69,7 +69,7 @@ export default function CheckInModal() {
       style={{ background: 'linear-gradient(135deg, rgba(29,78,216,0.92) 0%, rgba(185,28,28,0.88) 100%)', backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-700 to-red-600 px-6 py-5 text-white text-center">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5 text-white text-center">
           <p className="text-3xl mb-1">👋</p>
           <h2 className="text-xl font-bold">¡Buen día, {user?.full_name?.split(' ')[0]}!</h2>
           <p className="text-blue-200 text-sm mt-1 capitalize">{fecha} · {hora}</p>

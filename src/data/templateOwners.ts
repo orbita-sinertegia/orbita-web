@@ -14,12 +14,12 @@
  * (para "lider" se sugiere a quien crea el proyecto).
  *
  * Ejemplo:
- *   lider: 'tony@sinertegia.com',
- *   diseno: 'disenador@sinertegia.com',
- *   edicion_video: 'editor@sinertegia.com',
+ *   lider: 'lider@tu-dominio.com',
+ *   diseno: 'disenador@tu-dominio.com',
+ *   edicion_video: 'editor@tu-dominio.com',
  */
 export const DEFAULT_TEMPLATE_OWNERS: Record<string, string> = {
-  // Tony aún no decide los responsables: vacío a propósito.
+  // Sin responsables por defecto: vacío a propósito.
 }
 
 const GROUP_DEPARTMENT: Record<string, string> = {

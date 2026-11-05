@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Project, Task, User } from '../../types'
 import {
   type HealthStatus, compareByRisk, currentDisplayPhase, DISPLAY_PHASE_LABELS, DISPLAY_PHASE_ORDER,
-  inferTemplateLabel, projectHealth,
+  projectHealth,
 } from '../../lib/roadmapPhases'
 import ClientRoadmapView, { type DelayEventLike } from '../roadmap/ClientRoadmapView'
 
@@ -261,7 +261,7 @@ export default function ClientRoadmapsManager({ restricted = false, initialClien
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold uppercase tracking-wide text-blue-600">{card.project.client?.name}</p>
                     <p className="truncate font-bold text-gray-900">{card.project.name}</p>
-                    <p className="text-xs text-gray-400">{inferTemplateLabel(card.tasks)} · {card.project.recording_mode === 'remota' ? 'Remota' : 'Oficina'}</p>
+                    <p className="text-xs text-gray-400">{card.project.recording_mode === 'remota' ? 'Remota' : 'Oficina'}</p>
                   </div>
                   <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-bold ${health.className}`}>{health.label}</span>
                 </div>

@@ -23,7 +23,7 @@ interface ConversationSummary {
 }
 
 function readStorageKey(userId: string, roomId: string) {
-  return `sinertegia:client-chat-read:${userId}:${roomId}`
+  return `orbita:client-chat-read:${userId}:${roomId}`
 }
 
 function shortTime(value?: string) {

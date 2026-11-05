@@ -20,7 +20,7 @@ const ClientPortal = lazy(() => import('./components/client/ClientPortal'))
 
 function AppLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-red-700 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 to-blue-600 flex items-center justify-center">
       <div className="text-white text-center">
         <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm opacity-70">Cargando...</p>

@@ -8,11 +8,11 @@ export interface AppearancePreferences {
 }
 
 export function readAppearance(): AppearancePreferences {
-  const theme = localStorage.getItem('sinertegia-theme') as AppearanceTheme | null
-  const textSize = localStorage.getItem('sinertegia-text-size') as TextSize | null
+  const theme = localStorage.getItem('orbita-theme') as AppearanceTheme | null
+  const textSize = localStorage.getItem('orbita-text-size') as TextSize | null
   return {
     theme: theme === 'dark' || theme === 'system' ? theme : 'light',
-    compact: localStorage.getItem('sinertegia-compact') === 'true',
+    compact: localStorage.getItem('orbita-compact') === 'true',
     textSize: textSize === 'large' ? 'large' : 'normal',
   }
 }
@@ -26,8 +26,8 @@ export function applyAppearance(preferences: AppearancePreferences) {
 }
 
 export function saveAppearance(preferences: AppearancePreferences) {
-  localStorage.setItem('sinertegia-theme', preferences.theme)
-  localStorage.setItem('sinertegia-compact', String(preferences.compact))
-  localStorage.setItem('sinertegia-text-size', preferences.textSize)
+  localStorage.setItem('orbita-theme', preferences.theme)
+  localStorage.setItem('orbita-compact', String(preferences.compact))
+  localStorage.setItem('orbita-text-size', preferences.textSize)
   applyAppearance(preferences)
 }

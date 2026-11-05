@@ -97,7 +97,7 @@ export default function TeamPerformance({ teamMembers, tasks }: Props) {
     setInviteSaving(true); setInviteError('')
     const { data, error } = await supabase.from('team_invitations').insert({ email: inviteForm.email.trim(), full_name: inviteForm.full_name.trim() || null, role: inviteForm.role, department: inviteForm.department || null }).select('id').single()
     if (error || !data) { setInviteError('No se pudo generar la invitación: ' + (error?.message || '')); setInviteSaving(false); return }
-    setInviteLink(`https://agencia.sinertegia.com?team_invite=${data.id}`); setInviteSaving(false)
+    setInviteLink(`${window.location.origin}?team_invite=${data.id}`); setInviteSaving(false)
   }
 
   function copyInviteLink() {
@@ -548,7 +548,7 @@ export default function TeamPerformance({ teamMembers, tasks }: Props) {
                   </div>
                   {inviteError && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{inviteError}</p>}
                   <button type="submit" disabled={inviteSaving}
-                    className="w-full bg-gradient-to-r from-blue-700 to-red-600 text-white text-sm font-semibold py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50">
+                    className="w-full bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50">
                     {inviteSaving ? 'Generando...' : 'Generar link de invitación'}
                   </button>
                 </form>
