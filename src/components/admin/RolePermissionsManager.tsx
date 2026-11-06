@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock3, Copy, KeyRound, LoaderCircle, Mail, Plus, Search, ShieldCheck, Trash2, UserX, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { sendWelcomeEmail } from '../../lib/inviteEmail'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, User, WorkSchedule } from '../../types'
 import UserAvatar from '../shared/UserAvatar'
@@ -18,8 +19,7 @@ const SECTIONS: Record<Tab, Section[]> = {
     ['calendar', 'Calendario general', 'Consultar fechas de todo el equipo'],
     ['performance', 'Rendimiento', 'Acceder a métricas del equipo'],
     ['mytasks', 'Mis tareas', 'Trabajar en sus tareas'],
-    ['roadmap', 'Hoja de ruta', 'Consultar la planeación general'],
-    ['client_roadmaps', 'Hoja de ruta de clientes', 'Buscar clientes y ver el resumen de todos los proyectos activos'],
+    ['client_roadmaps', 'Hoja de ruta', 'Buscar clientes y ver el resumen de todos los proyectos activos'],
     ['clientes', 'Clientes', 'Administrar clientes y asignaciones'],
     ['requests', 'Solicitudes', 'Autorizar solicitudes de clientes'],
     ['chat_team', 'Chat del equipo', 'Participar en conversaciones internas'],
@@ -30,8 +30,7 @@ const SECTIONS: Record<Tab, Section[]> = {
   team: [
     ['tasks', 'Mis tareas', 'Consultar y trabajar en tareas asignadas'],
     ['calendar', 'Mi calendario', 'Ver fechas y compromisos'],
-    ['roadmap', 'Hoja de ruta', 'Consultar la planeación de tareas'],
-    ['client_roadmaps', 'Hoja de ruta de clientes', 'Ver el resumen de sus clientes asignados (apagada por defecto)'],
+    ['client_roadmaps', 'Hoja de ruta', 'Ver el resumen de sus clientes asignados (apagada por defecto)'],
     ['chat_team', 'Chat del equipo', 'Participar en el chat interno'],
     ['chat_clients', 'Chat con clientes', 'Conversar con clientes asignados'],
     ['entregables', 'Entregables', 'Subir y consultar entregables'],
@@ -41,8 +40,7 @@ const SECTIONS: Record<Tab, Section[]> = {
     ['progreso', 'Todas las tareas', 'Ver el avance completo'],
     ['area', 'Por área', 'Consultar trabajo por departamento'],
     ['calendario', 'Calendario', 'Ver fechas y compromisos'],
-    ['roadmap', 'Hoja de ruta', 'Consultar la planeación del proyecto'],
-    ['mihojaderuta', 'Mi hoja de ruta', 'Ver fases, hitos y lanzamiento de su proyecto'],
+    ['mihojaderuta', 'Hoja de ruta', 'Ver fases, hitos y lanzamiento de su proyecto'],
     ['chat', 'Chat con el equipo', 'Comunicarse con el equipo'],
     ['entregables', 'Entregables', 'Revisar archivos y versiones finales'],
   ].map(([key, label, description]) => ({ key, label, description })),
@@ -440,15 +438,8 @@ export default function RolePermissionsManager() {
     }
     setInviteLink(url)
     const roleLabel = tab === 'admin' ? 'administrador' : tab === 'team' ? 'integrante del equipo' : 'cliente'
-    const { error: mailError } = await supabase.functions.invoke('send-user-invitation', {
-      body: {
-        email: invite.email.trim(),
-        fullName: invite.full_name.trim(),
-        roleLabel,
-        inviteUrl: url,
-      },
-    })
-    setInviteStatus(mailError ? 'Invitación creada. Configura la función de correo o comparte el enlace.' : 'Invitación enviada por correo correctamente.')
+    const mailSent = await sendWelcomeEmail({ email: invite.email.trim(), fullName: invite.full_name.trim(), roleLabel, inviteUrl: url })
+    setInviteStatus(mailSent ? 'Correo de bienvenida enviado.' : 'Invitación creada, pero no se pudo enviar el correo. Comparte el enlace.')
     setSaving('')
     await load()
   }

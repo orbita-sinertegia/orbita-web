@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Copy, Link, Mail, Map as MapIcon, Plus, Search, UserPlus, Workflow, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { askInviteEmail } from '../../lib/inviteEmail'
+import { askInviteEmail, sendWelcomeEmail } from '../../lib/inviteEmail'
 import type { Client, User } from '../../types'
 import UserAvatar from '../shared/UserAvatar'
 
@@ -62,6 +62,7 @@ export default function ClientAssignmentManager({ clients, teamMembers, onCreate
     const url = `${window.location.origin}?invite=${data.id}`
     setGeneratedLinks(previous => ({ ...previous, [clientId]: url }))
     setInvitedClientIds(previous => new Set(previous).add(clientId))
+    void sendWelcomeEmail({ email, fullName: clients.find(client => client.id === clientId)?.name || '', roleLabel: 'cliente', inviteUrl: url })
   }
 
   async function copyLink(clientId: string) {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Archive, CalendarDays, CheckCircle2, Trash2, UserRoundPen, X } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Trash2, UserRoundPen, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { friendlyTaskError } from '../../lib/adminTasks'
 import { quickCompleteArgs } from '../../lib/quickComplete'
@@ -19,14 +19,12 @@ interface Props {
 
 /**
  * Acciones en lote (selección múltiple), una tarea a la vez, con avance y fallas parciales.
- * Archivar: RPC admin_archive_task (igual que el botón individual).
  * Reasignar / Fecha "La necesito para": RPC admin_update_task (la misma del lápiz → avisos de reasignación).
  * Eliminar: RPC super_admin_delete_task (solo super admin; la base también lo exige).
  * Completar (TEMPORAL, ENABLE_QUICK_COMPLETE): RPC super_admin_set_task_status (solo super admin).
  */
 const ACTION_UI = {
   eliminar: { verb: 'Eliminar', running: 'Eliminando', header: 'border-red-100 bg-gradient-to-r from-red-50 to-orange-50', badge: 'bg-red-100 text-red-600', button: 'bg-red-600 hover:bg-red-700', Icon: Trash2 },
-  archivar: { verb: 'Archivar', running: 'Archivando', header: 'border-amber-100 bg-amber-50', badge: 'bg-amber-100 text-amber-600', button: 'bg-amber-600 hover:bg-amber-700', Icon: Archive },
   completar: { verb: 'Marcar como realizadas', running: 'Marcando', header: 'border-emerald-100 bg-emerald-50', badge: 'bg-emerald-100 text-emerald-600', button: 'bg-emerald-600 hover:bg-emerald-700', Icon: CheckCircle2 },
   reasignar: { verb: 'Reasignar', running: 'Reasignando', header: 'border-blue-100 bg-blue-50', badge: 'bg-blue-100 text-blue-600', button: 'bg-blue-600 hover:bg-blue-700', Icon: UserRoundPen },
   necesito: { verb: 'Cambiar fecha de', running: 'Guardando', header: 'border-orange-100 bg-orange-50', badge: 'bg-orange-100 text-orange-600', button: 'bg-orange-600 hover:bg-orange-700', Icon: CalendarDays },
@@ -35,7 +33,6 @@ const ACTION_UI = {
 const plural = (count: number) => (count === 1 ? '1 tarea' : `${count} tareas`)
 
 export default function BulkTaskActionModal({ action, tasks, onClose, onDone, members = [], canEditCompleted = false }: Props) {
-  const [reason, setReason] = useState('')
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<BulkResult | null>(null)
@@ -62,7 +59,6 @@ export default function BulkTaskActionModal({ action, tasks, onClose, onDone, me
     if (running || result || !count || missingInput) return
     setRunning(true)
     setProgress(0)
-    const trimmed = reason.trim() || null
     const changes = bulkUpdateChanges(action, target)
     const skipped = skippedPreview
     const outcome = await runBulk(action, toRun, async task => {
@@ -74,13 +70,9 @@ export default function BulkTaskActionModal({ action, tasks, onClose, onDone, me
         const { error } = await supabase.rpc('super_admin_set_task_status', quickCompleteArgs(task.id))
         return error ? friendlyTaskError(error.message) : ''
       }
-      if (isDelete) {
-        const { data, error } = await supabase.rpc('super_admin_delete_task', { p_task_id: task.id })
-        if (error) return friendlyTaskError(error.message)
-        return data === task.id ? '' : 'No se confirmó el borrado.'
-      }
-      const { error } = await supabase.rpc('admin_archive_task', { p_task_id: task.id, p_reason: trimmed })
-      return error ? friendlyTaskError(error.message) : ''
+      const { data, error } = await supabase.rpc('super_admin_delete_task', { p_task_id: task.id })
+      if (error) return friendlyTaskError(error.message)
+      return data === task.id ? '' : 'No se confirmó el borrado.'
     }, done => setProgress(done))
     const full: BulkResult = isUpdate ? { ...outcome, skipped } : outcome
     setRunning(false)
@@ -106,8 +98,7 @@ export default function BulkTaskActionModal({ action, tasks, onClose, onDone, me
   const confirmLabel = isDelete ? `Sí, eliminar ${count} para siempre`
     : action === 'completar' ? `Marcar ${count} como realizadas`
       : action === 'reasignar' ? `Reasignar ${runCount}`
-        : action === 'necesito' ? (clearDate ? `Quitar fecha a ${runCount}` : `Guardar fecha en ${runCount}`)
-          : `Archivar ${count}`
+        : clearDate ? `Quitar fecha a ${runCount}` : `Guardar fecha en ${runCount}`
   const hasFailures = !!result?.failed.length
 
   return (
@@ -166,15 +157,6 @@ export default function BulkTaskActionModal({ action, tasks, onClose, onDone, me
                 <p className="mt-2 text-xs font-medium text-amber-700">{`Se ${skippedPreview.length === 1 ? 'saltará' : 'saltarán'} ${plural(skippedPreview.length)} (tachadas; pasa el cursor para ver el motivo).`}</p>
               )}
 
-              {action === 'archivar' && (
-                <div className="mt-4">
-                  <label htmlFor="bulk-archive-reason" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Motivo (opcional)</label>
-                  <textarea id="bulk-archive-reason" value={reason} onChange={e => setReason(e.target.value)} rows={2} disabled={running}
-                    placeholder="Ej: proyecto cancelado, tareas duplicadas..."
-                    className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              )}
-              {isDelete && <p className="mt-3 text-xs text-gray-500">Si solo quieres quitarlas de las listas, mejor archívalas: se pueden recuperar.</p>}
               {running && <p role="status" className="mt-4 text-sm font-semibold text-gray-700">{ui.running} {progress} de {isUpdate ? runCount : count}...</p>}
             </>
           ) : (

@@ -12,7 +12,7 @@ interface Props {
 }
 
 /**
- * Eliminar una tarea para siempre (solo super admin, RPC super_admin_delete_task).
+ * Borrar una tarea definitivamente (solo super admin, RPC super_admin_delete_task).
  * Funciona también con tareas sin archivar. Queda una foto en task_audit_log.
  */
 export default function DeleteTaskModal({ task, onClose, onDeleted }: Props) {
@@ -42,7 +42,7 @@ export default function DeleteTaskModal({ task, onClose, onDeleted }: Props) {
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600"><Trash2 size={19} /></div>
             <div>
-              <h2 id="delete-task-title" className="text-lg font-bold text-gray-900">Eliminar tarea</h2>
+              <h2 id="delete-task-title" className="text-lg font-bold text-gray-900">¿Deseas borrar definitivamente esta tarea?</h2>
               <p className="mt-1 text-sm text-gray-600">Esta acción es permanente y no se puede deshacer.</p>
             </div>
           </div>
@@ -52,7 +52,6 @@ export default function DeleteTaskModal({ task, onClose, onDeleted }: Props) {
           <p id="delete-task-description" className="text-sm leading-6 text-gray-600">
             Se eliminará para siempre <span className="font-bold text-gray-900">“{task.title}”</span>, con sus comentarios, enlaces, subtareas, tiempos y calificaciones. No se puede deshacer.
           </p>
-          <p className="mt-3 text-xs text-gray-500">Si solo quieres quitarla de las listas, mejor archívala: se puede recuperar.</p>
           {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</p>}
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
@@ -62,7 +61,7 @@ export default function DeleteTaskModal({ task, onClose, onDeleted }: Props) {
           </button>
           <button type="button" onClick={confirmDelete} disabled={saving}
             className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-wait disabled:opacity-60">
-            <Trash2 size={16} /> {saving ? 'Eliminando...' : 'Sí, eliminar para siempre'}
+            <Trash2 size={16} /> {saving ? 'Borrando...' : 'Sí, borrar definitivamente'}
           </button>
         </div>
       </div>

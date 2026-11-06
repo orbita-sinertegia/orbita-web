@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ArchiveRestore, CheckCircle2, ClipboardList, Eye, MessageSquare, Pencil, Search, Trash2, Users } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Eye, MessageSquare, Pencil, Search, Trash2, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Task, TaskStatus, User } from '../../types'
 import { countUndatedByAssignee } from '../../lib/missingDates'
-import { canConfirmPermanentDelete, friendlyTaskError } from '../../lib/adminTasks'
+import { friendlyTaskError } from '../../lib/adminTasks'
 import PriorityBadge from '../shared/PriorityBadge'
 import StatusBadge from '../shared/StatusBadge'
 import UserAvatar from '../shared/UserAvatar'
 import TaskDetailModal from '../team/TaskDetailModal'
 import EditTaskModal from './EditTaskModal'
-import ArchiveTaskModal from './ArchiveTaskModal'
 import DeleteTaskModal from './DeleteTaskModal'
 import { canChangeProjectStatus, canDeleteTasks, taskDeletedNotice } from '../../lib/projectStatus'
 import BulkTaskActionModal from './BulkTaskActionModal'
@@ -27,7 +26,6 @@ interface Props {
 }
 
 type StatusFilter = 'activas' | TaskStatus | 'todas'
-type TaskView = 'activas' | 'archivadas'
 type TaskCommentSummary = {
   id: string
   task_id: string
@@ -35,7 +33,6 @@ type TaskCommentSummary = {
   created_at: string
   user?: { full_name?: string } | null
 }
-type ArchivedTask = Task & { archived_by_user?: { full_name?: string } | null }
 
 function mergeMembers(currentUser: User | null, members: User[]) {
   const byId = new Map(members.map(member => [member.id, member]))
@@ -47,7 +44,6 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
   const { user } = useAuth()
   // Admin = rol admin o super admin (igual que is_active_admin() en SQL).
   const isAdmin = user?.role === 'admin' || !!user?.is_super_admin
-  const [view, setView] = useState<TaskView>('activas')
   const [selectedMemberId, setSelectedMemberId] = useState('all')
   const [memberSearch, setMemberSearch] = useState('')
   const [taskSearch, setTaskSearch] = useState('')
@@ -61,76 +57,15 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
     [...teamMembers, ...tasks.flatMap(task => task.assignee ? [task.assignee] : [])],
   ))
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [archivingTask, setArchivingTask] = useState<Task | null>(null)
-  const [archivedTasks, setArchivedTasks] = useState<ArchivedTask[]>([])
-  const [archivedLoading, setArchivedLoading] = useState(false)
-  const [archivedError, setArchivedError] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
-  // Eliminar para siempre una tarea activa (sin archivar antes): solo el super admin.
+  // Borrar una tarea definitivamente: solo el super admin.
   const canDeleteTask = canDeleteTasks(user)
   const [superDeleteTask, setSuperDeleteTask] = useState<Task | null>(null)
   const [deleteNotice, setDeleteNotice] = useState('')
-  const [deleteInput, setDeleteInput] = useState('')
-  // Selección múltiple (casilla junto al nombre) para archivar / eliminar varias de una.
+  // Selección múltiple (casilla junto al nombre) para actuar sobre varias de una.
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [bulkAction, setBulkAction] = useState<{ action: BulkTaskAction; tasks: BulkTaskRef[] } | null>(null)
   // Edición en línea en las tarjetas (persona asignada y prioridad): cambios optimistas.
   const [taskOverrides, setTaskOverrides] = useState<TaskOverrides>({})
-
-  async function fetchArchivedTasks() {
-    if (!isAdmin) return
-    setArchivedLoading(true)
-    setArchivedError('')
-    const { data, error: archivedFetchError } = await supabase
-      .from('tasks')
-      .select('*, project:projects(*, client:clients(*)), assignee:users!assigned_to(*), archived_by_user:users!archived_by(full_name)')
-      .not('archived_at', 'is', null)
-      .order('archived_at', { ascending: false })
-    setArchivedLoading(false)
-    if (archivedFetchError) {
-      setArchivedError(`No se pudieron cargar las tareas archivadas: ${archivedFetchError.message}`)
-      return
-    }
-    setArchivedTasks((data || []) as unknown as ArchivedTask[])
-  }
-
-  useEffect(() => {
-    // Carga al abrir (para mostrar el conteo "Archivadas (N)") y al cambiar de pestaña.
-    async function loadArchived() {
-      if (isAdmin) await fetchArchivedTasks()
-    }
-    void loadArchived()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, isAdmin])
-
-  async function restoreTask(task: Task) {
-    setBusyTaskId(task.id)
-    setArchivedError('')
-    const { error: restoreError } = await supabase.rpc('admin_restore_task', { p_task_id: task.id })
-    setBusyTaskId('')
-    if (restoreError) {
-      setArchivedError(friendlyTaskError(restoreError.message))
-      return
-    }
-    await fetchArchivedTasks()
-    await onTasksChange()
-  }
-
-  async function confirmPermanentDelete() {
-    if (!deleteTarget) return
-    setBusyTaskId(deleteTarget.id)
-    setArchivedError('')
-    const { error: deleteError } = await supabase.rpc('admin_delete_team_task', { p_task_id: deleteTarget.id })
-    setBusyTaskId('')
-    if (deleteError) {
-      setArchivedError(friendlyTaskError(deleteError.message))
-      return
-    }
-    setDeleteTarget(null)
-    setDeleteInput('')
-    await fetchArchivedTasks()
-    await onTasksChange()
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -228,7 +163,6 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
     // Las que fallaron se quedan seleccionadas para reintentar; las demás se limpian.
     setSelectedTaskIds(result.failed.map(item => item.id))
     setDeleteNotice(bulkResultNotice(result))
-    if (result.action === 'archivar') void fetchArchivedTasks()
     void onTasksChange()
   }
 
@@ -256,13 +190,6 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
     void onTasksChange()
   }
 
-  function handleTaskArchived() {
-    setArchivingTask(null)
-    setSelectedTask(null)
-    void fetchArchivedTasks()
-    void onTasksChange()
-  }
-
   return (
     <div className="mx-auto max-w-[1400px] p-3 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -279,61 +206,7 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
       </div>
 
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {archivedError && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{archivedError}</div>}
 
-      {isAdmin && (
-        <div className="mb-4 inline-flex rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-          <button type="button" onClick={() => setView('activas')} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${view === 'activas' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-            Activas
-          </button>
-          <button type="button" onClick={() => setView('archivadas')} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${view === 'archivadas' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-            Archivadas{archivedTasks.length > 0 ? ` (${archivedTasks.length})` : ''}
-          </button>
-        </div>
-      )}
-
-      {view === 'archivadas' && isAdmin ? (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          {archivedLoading ? (
-            <div className="flex min-h-64 items-center justify-center text-gray-400">Cargando tareas archivadas...</div>
-          ) : archivedTasks.length === 0 ? (
-            <div className="flex min-h-64 flex-col items-center justify-center p-8 text-center text-gray-400">
-              <Archive size={42} className="mb-3 text-gray-300" />
-              <b className="text-gray-600">No hay tareas archivadas</b>
-              <span className="mt-1 text-sm">Las tareas que archives aparecerán aquí.</span>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                  <tr><th className="px-4 py-3">Tarea</th><th className="px-4 py-3">Proyecto</th><th className="px-4 py-3">Archivada por</th><th className="px-4 py-3">Fecha</th><th className="px-4 py-3">Motivo</th><th className="px-4 py-3 text-right">Acciones</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {archivedTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-gray-50/60">
-                      <td className="max-w-[260px] px-4 py-3"><b className="block truncate text-gray-900">{task.title}</b><small className="block truncate text-gray-500">{task.assignee?.full_name || 'Sin asignar'}</small></td>
-                      <td className="px-4 py-3 text-gray-600">{task.project?.client?.name || 'Sin cliente'} · {task.project?.name || 'Sin proyecto'}</td>
-                      <td className="px-4 py-3 text-gray-600">{task.archived_by_user?.full_name || '—'}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-500">{task.archived_at ? new Date(task.archived_at).toLocaleDateString('es-MX') : '—'}</td>
-                      <td className="max-w-[220px] truncate px-4 py-3 text-gray-500">{task.archive_reason || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button type="button" disabled={busyTaskId === task.id} onClick={() => restoreTask(task)} title="Restaurar tarea" className="flex items-center gap-1.5 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
-                            <ArchiveRestore size={14} /> Restaurar
-                          </button>
-                          <button type="button" disabled={busyTaskId === task.id} onClick={() => { setDeleteTarget(task); setDeleteInput('') }} title="Borrar definitivamente" className="flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">
-                            <Trash2 size={14} /> Borrar definitivamente
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
       <div className="grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:min-h-[650px] lg:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="border-b border-gray-200 bg-gray-50/70 p-4 lg:border-b-0 lg:border-r">
           <div className="relative mb-3">
@@ -391,7 +264,7 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
                       <span className="min-w-0"><span className="block truncate text-xs font-semibold text-gray-700 group-hover:text-blue-600">{latestComment.user?.full_name || 'Usuario'} · {taskComments.length}</span><span className="block truncate text-xs text-gray-500">{latestComment.content}</span></span>
                     </button> : <span className="text-xs text-gray-400">Sin comentarios</span>}
                   </td>
-                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Eliminar tarea para siempre" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div></td>
+                  <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Borrar definitivamente" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div></td>
                 </tr>})}
               </tbody>
             </table>
@@ -406,9 +279,7 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
               </label>
               <TaskSelectionBar
                 count={selectedVisibleIds.length}
-                canArchive={isAdmin}
                 canDelete={canDeleteTask}
-                onArchive={() => openBulk('archivar')}
                 onDelete={() => openBulk('eliminar')}
                 onClear={() => setSelectedTaskIds([])}
                 canComplete={canBulkQuickComplete(user)}
@@ -449,14 +320,13 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
                   <span><b className="text-gray-600">Entrega:</b> {task.commitment_date ? new Date(`${task.commitment_date}T00:00:00`).toLocaleDateString('es-MX') : 'Sin fecha'}</span>
                   <button type="button" onClick={() => setSelectedTask(task)} className="truncate text-left hover:text-blue-600"><b className="text-gray-600">Comentarios:</b> {latestComment ? `${latestComment.user?.full_name || 'Usuario'} · ${taskComments.length} — ${latestComment.content}` : 'Sin comentarios'}</button>
                 </div>
-                <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-3"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-50"><Archive size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Eliminar tarea para siempre" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div>
+                <div className="mt-3 flex justify-end gap-2 border-t border-gray-100 pt-3"><button type="button" onClick={() => setSelectedTask(task)} title="Ver detalle" className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:border-blue-300 hover:text-blue-600"><Eye size={16} /></button>{isAdmin && <button type="button" disabled={busyTaskId === task.id} onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Pencil size={16} /></button>}{task.status !== 'completada' && <button type="button" disabled={busyTaskId === task.id} onClick={() => completeTask(task)} title="Marcar completada" className="rounded-lg border border-emerald-200 p-2 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={16} /></button>}{canDeleteTask && <button type="button" disabled={busyTaskId === task.id} onClick={() => setSuperDeleteTask(task)} title="Borrar definitivamente" className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16} /></button>}</div>
               </article>
             })}
             {!filteredTasks.length && <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-gray-200 p-8 text-center text-gray-400"><ClipboardList size={42} className="mb-3 text-gray-300" /><b className="text-gray-600">No hay tareas con estos filtros</b><span className="mt-1 text-sm">Prueba otra persona, estado o búsqueda.</span></div>}
           </div>
         </section>
       </div>
-      )}
 
       {selectedTask && <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onUpdate={async () => { setSelectedTask(null); await onTasksChange() }} />}
       {editingTask && <EditTaskModal task={editingTask} onClose={() => setEditingTask(null)} onSaved={handleTaskSaved} />}
@@ -469,44 +339,8 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
           <button type="button" aria-label="Cerrar aviso" onClick={() => setDeleteNotice('')} className="text-gray-300 hover:text-white">×</button>
         </div>
       )}
-      {bulkAction && isAdmin && (bulkAction.action === 'archivar' || bulkAction.action === 'reasignar' || bulkAction.action === 'necesito' || (bulkAction.action === 'eliminar' && canDeleteTask) || (bulkAction.action === 'completar' && canBulkQuickComplete(user))) && (
+      {bulkAction && isAdmin && (bulkAction.action === 'reasignar' || bulkAction.action === 'necesito' || (bulkAction.action === 'eliminar' && canDeleteTask) || (bulkAction.action === 'completar' && canBulkQuickComplete(user))) && (
         <BulkTaskActionModal action={bulkAction.action} tasks={bulkAction.tasks} members={assignableMembers} canEditCompleted={canChangeProjectStatus(user)} onClose={() => setBulkAction(null)} onDone={handleBulkDone} />
-      )}
-      {archivingTask && <ArchiveTaskModal task={archivingTask} onClose={() => setArchivingTask(null)} onArchived={handleTaskArchived} />}
-
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-            <div className="border-b border-red-100 bg-gradient-to-r from-red-50 to-orange-50 px-6 py-5">
-              <h2 className="text-lg font-bold text-gray-900">Borrar definitivamente</h2>
-              <p className="mt-1 text-sm text-gray-600">Esta acción es permanente y no se puede deshacer.</p>
-            </div>
-            <div className="px-6 py-5 space-y-3">
-              <p className="text-sm leading-6 text-gray-600">
-                Se perderán los comentarios, entregables, subtareas, tiempos y calificaciones de
-                <span className="font-bold text-gray-900"> “{deleteTarget.title}”</span>.
-                Escribe el título exacto de la tarea para confirmar.
-              </p>
-              <input
-                autoFocus
-                value={deleteInput}
-                onChange={e => setDeleteInput(e.target.value)}
-                placeholder={deleteTarget.title}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-              />
-            </div>
-            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => { setDeleteTarget(null); setDeleteInput('') }} disabled={busyTaskId === deleteTarget.id}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">
-                Cancelar
-              </button>
-              <button type="button" onClick={confirmPermanentDelete} disabled={busyTaskId === deleteTarget.id || !canConfirmPermanentDelete(deleteInput, deleteTarget.title)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">
-                <Trash2 size={16} /> {busyTaskId === deleteTarget.id ? 'Borrando...' : 'Borrar definitivamente'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

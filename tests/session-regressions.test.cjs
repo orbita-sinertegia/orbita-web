@@ -356,11 +356,10 @@ test('New task loads every active funnel and reports template save failures', ()
   assert.doesNotMatch(source, /useState<'vsl' \| 'webinar'>/)
 })
 
-test('New task requires a deliverable and keeps template settings under more options', () => {
+test('New task does not require a deliverable and keeps template settings under more options', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src/components/admin/CreateTaskModal.tsx'), 'utf8')
-  assert.match(source, /referenceLinks\.length === 0 && pendingFiles\.length === 0/)
-  assert.match(source, /Agrega al menos un entregable: un enlace o un archivo/)
-  assert.match(source, /Entregables \*/)
+  assert.doesNotMatch(source, /Agrega al menos un entregable/)
+  assert.match(source, /Entregables \(opcional\)/)
   assert.match(source, /📆 Fecha de entrega/)
   assert.match(source, /Más opciones/)
   assert.match(source, /advancedOpen && <div/)
@@ -759,8 +758,8 @@ test('Clientes view can open the roadmap for a specific client card', () => {
 test('"client_roadmaps" is a first-class admin section controlled by role_permissions/user_permissions', () => {
   const dashboard = fs.readFileSync(path.join(__dirname, '..', 'src/components/admin/AdminDashboard.tsx'), 'utf8')
   const permissions = fs.readFileSync(path.join(__dirname, '..', 'src/components/admin/RolePermissionsManager.tsx'), 'utf8')
-  assert.match(dashboard, /id: 'client_roadmaps', label: 'Hoja de ruta de clientes'/)
-  assert.match(permissions, /\['client_roadmaps', 'Hoja de ruta de clientes'/)
+  assert.match(dashboard, /id: 'client_roadmaps', label: 'Hoja de ruta'/)
+  assert.match(permissions, /\['client_roadmaps', 'Hoja de ruta'/)
 })
 
 test('Team "client_roadmaps" section is off by default unless explicitly allowed', () => {
@@ -1041,17 +1040,17 @@ test('Si la base rechaza el borrado por no ser super admin, se explica', async (
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Eliminar una tarea para siempre (bote junto a archivar): solo el super admin
+// Borrar una tarea definitivamente: solo el super admin
 // ─────────────────────────────────────────────────────────────────────────
 
 const rowTask = { id: 'task-9', title: 'Guion anuncio 3', status: 'pendiente', priority: 'media', department: 'copy', project_id: 'project-1' }
-const isTrash = node => node.type === 'button' && node.props?.title === 'Eliminar tarea para siempre'
+const isTrash = node => node.type === 'button' && node.props?.title === 'Borrar definitivamente'
 
-test('El bote de basura junto a archivar solo aparece para el super admin', () => {
+test('El botón de borrar solo aparece para el super admin y ya no existe archivar', () => {
   const props = { ...projectProps, tasks: [rowTask] }
   for (const user of [{ id: 'admin-1', role: 'admin', is_super_admin: false }, { id: 'sa-off', role: 'admin', is_super_admin: true, active: false }]) {
     const h = harness(projectFile, [], [], { user }, props)
-    assert.ok(find(h.render(), node => node.type === 'button' && node.props?.title === 'Archivar tarea'), 'archivar sigue')
+    assert.equal(find(h.render(), node => node.type === 'button' && node.props?.title === 'Archivar tarea'), undefined, 'archivar ya no existe')
     assert.equal(find(h.render(), isTrash), undefined, `sin bote para ${user.id}`)
   }
   const h = harness(projectFile, [], [], superAdminAuth, props)
@@ -1070,7 +1069,7 @@ test('Eliminar tarea: el diálogo muestra el nombre y "no se puede deshacer"; co
   const dialog = find(h.render(), node => node.props?.role === 'dialog')
   assert.match(JSON.stringify(dialog), /Guion anuncio 3/)
   assert.match(JSON.stringify(dialog), /no se puede deshacer/)
-  await find(h.render(), node => buttonText(node, ' Sí, eliminar para siempre') || (node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, eliminar para siempre'))).props.onClick()
+  await find(h.render(), node => buttonText(node, ' Sí, borrar definitivamente') || (node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, borrar definitivamente'))).props.onClick()
   assert.equal(h.calls.length, 1)
   assert.equal(h.calls[0].rpc, 'super_admin_delete_task')
   assert.equal(h.calls[0].args.p_task_id, 'task-9')
@@ -1080,13 +1079,13 @@ test('Eliminar tarea: el diálogo muestra el nombre y "no se puede deshacer"; co
 test('Eliminar tarea: si la base lo rechaza, se queda abierto con el error', async () => {
   let deleted = false
   const h = harness(deleteModalFile, [], [{ data: null, error: { message: 'Solo el super admin puede eliminar tareas para siempre' } }], {}, { task: rowTask, onClose() {}, onDeleted() { deleted = true } })
-  await find(h.render(), node => node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, eliminar para siempre')).props.onClick()
+  await find(h.render(), node => node.type === 'button' && JSON.stringify(node.props.children).includes('Sí, borrar definitivamente')).props.onClick()
   assert.equal(deleted, false)
   assert.match(JSON.stringify(find(h.render(), node => node.props?.role === 'alert')), /Solo el super admin/)
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Selección múltiple: casilla junto al nombre, archivar / eliminar varias de una
+// Selección múltiple: casilla junto al nombre, actuar sobre varias de una
 // ─────────────────────────────────────────────────────────────────────────
 
 const multiTasks = [
@@ -1096,7 +1095,7 @@ const multiTasks = [
 ]
 const isRowBox = id => node => typeof node.props?.onToggle === 'function' && node.props?.label === `Seleccionar tarea ${id}`
 const isAllBox = node => typeof node.props?.onToggle === 'function' && /todas/.test(node.props?.label || '')
-const isBar = node => typeof node.props?.onArchive === 'function' && typeof node.props?.onClear === 'function'
+const isBar = node => typeof node.props?.onDelete === 'function' && typeof node.props?.onClear === 'function'
 const isBulkModal = node => typeof node.props?.onDone === 'function' && Array.isArray(node.props?.tasks)
 
 test('Tareas del proyecto: casillas por tarea y "seleccionar todas" solo para admins', () => {
@@ -1128,18 +1127,17 @@ test('Seleccionar varias: la barra muestra cuántas, "todas" queda a medias y lu
   assert.equal(find(h.render(), isBar).props.count, 0, 'quitar selección')
 })
 
-test('Eliminar en lote: solo super admin; el admin solo puede archivar', () => {
+test('Eliminar en lote: solo super admin; el admin puede reasignar', () => {
   const props = { ...projectProps, tasks: multiTasks }
   const admin = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, props)
   let bar = find(admin.render(), isBar)
-  assert.equal(bar.props.canArchive, true)
   assert.equal(bar.props.canDelete, false)
   find(admin.render(), isRowBox('Guion 1')).props.onToggle()
   find(admin.render(), isBar).props.onDelete()
   assert.equal(find(admin.render(), isBulkModal), undefined, 'sin permiso no abre el diálogo de eliminar')
-  find(admin.render(), isBar).props.onArchive()
+  find(admin.render(), isBar).props.onReassign()
   const modal = find(admin.render(), isBulkModal)
-  assert.equal(modal.props.action, 'archivar')
+  assert.equal(modal.props.action, 'reasignar')
   assert.deepEqual(JSON.parse(JSON.stringify(modal.props.tasks)).map(({ id, title }) => ({ id, title })), [{ id: 't-1', title: 'Guion 1' }])
   assert.equal(modal.props.tasks[0].department, 'copy', 'el lote lleva depto/estado para saber cuáles saltar')
 
@@ -1213,24 +1211,13 @@ test('Eliminar en lote con fallas parciales: muestra cuáles fallaron y avisa al
   assert.deepEqual([...done.failed.map(f => f.id)], ['t-2', 't-3'])
 })
 
-test('Archivar en lote: usa admin_archive_task con el mismo motivo para todas', async () => {
-  let done = null
-  const replies = bulkTasks.slice(0, 2).map(t => ({ data: { id: t.id }, error: null }))
-  const h = harness(bulkFile, [], replies, {}, { action: 'archivar', tasks: bulkTasks.slice(0, 2), onClose() {}, onDone(r) { done = r } })
-  assert.match(textOf(find(h.render(), node => node.props?.role === 'dialog')), /Archivar 2 tareas/)
-  find(h.render(), node => node.type === 'textarea').props.onChange({ target: { value: '  duplicadas ' } })
-  await find(h.render(), confirmBtn('Archivar 2')).props.onClick()
-  assert.deepEqual(h.calls.map(c => [c.rpc, c.args.p_task_id, c.args.p_reason]), [['admin_archive_task', 't-1', 'duplicadas'], ['admin_archive_task', 't-2', 'duplicadas']])
-  assert.equal(done.failed.length, 0)
-})
-
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 test('TeamTasksManager: casillas, seleccionar todas y barra de acciones (eliminar solo super admin)', () => {
   const manager = read('src/components/admin/TeamTasksManager.tsx')
   assert.match(manager, /<TaskSelectionBar[\s\S]*?canDelete=\{canDeleteTask\}/)
   assert.equal((manager.match(/onToggle=\{\(\) => setSelectedTaskIds\(prev => toggleSelected\(prev, task\.id\)\)\}/g) || []).length, 2, 'casilla en tarjeta y tabla')
   assert.equal((manager.match(/toggleSelectAll\(prev, visibleTaskIds\)/g) || []).length, 2)
-  assert.match(manager, /\{bulkAction && isAdmin && \(bulkAction\.action === 'archivar' \|\| bulkAction\.action === 'reasignar' \|\| bulkAction\.action === 'necesito' \|\| \(bulkAction\.action === 'eliminar' && canDeleteTask\)/)
+  assert.match(manager, /\{bulkAction && isAdmin && \(bulkAction\.action === 'reasignar' \|\| bulkAction\.action === 'necesito' \|\| \(bulkAction\.action === 'eliminar' && canDeleteTask\)/)
   assert.match(manager, /setSelectedTaskIds\(result\.failed\.map\(item => item\.id\)\)/)
   assert.match(manager, /void onTasksChange\(\)\n  \}/)
 })
@@ -1355,7 +1342,7 @@ test('Palomita verde: solo el super admin, a la derecha del bote, y no en tareas
   assert.equal(find(sa.render(), isQuick('Video 2')), undefined, 'ya realizada: sin palomita')
   const actions = find(sa.render(), node => node.type === 'div' && node.props?.className === 'flex justify-end gap-2' && [node.props.children].flat(Infinity).some(isQuick('Video 1')))
   const kids = [actions.props.children].flat(Infinity).filter(Boolean)
-  const trashIdx = kids.findIndex(k => k.props?.title === 'Eliminar tarea para siempre')
+  const trashIdx = kids.findIndex(k => k.props?.title === 'Borrar definitivamente')
   const quickIdx = kids.findIndex(k => k.props?.title === 'Marcar como realizada')
   assert.ok(trashIdx >= 0 && quickIdx === trashIdx + 1, 'justo a la derecha del bote')
 })
@@ -1493,12 +1480,28 @@ test('Barra de selección: Reasignar y Fecha para admins en Tareas del proyecto 
   }
 })
 
-test('Agenda del equipo: vista de admins en Operación, siempre visible, con equipo + admins', () => {
+test('Agenda, hoja de ruta general y tareas archivadas ya no están en la app', () => {
   const dash = read('src/components/admin/AdminDashboard.tsx')
-  assert.match(dash, /\{ id: 'agenda', label: 'Agenda del equipo'/)
-  assert.match(dash, /ids: \['overview', 'team', 'team_tasks', 'agenda',/)
-  assert.match(dash, /item\.id === 'agenda' \|\|/)
-  assert.match(dash, /<TeamAgenda teamMembers=\{teamMembers\} adminMembers=\{adminMembers\} tasks=\{operationalTasks\}/)
+  assert.doesNotMatch(dash, /TeamAgenda|'agenda'|id: 'roadmap'|view === 'roadmap'/)
+  assert.match(dash, /id: 'client_roadmaps', label: 'Hoja de ruta'/)
+  assert.doesNotMatch(read('src/components/team/TeamDashboard.tsx'), /teamView === 'roadmap'/)
+  const portal = read('src/components/client/ClientPortal.tsx')
+  assert.doesNotMatch(portal, /activeTab === 'roadmap'/)
+  assert.match(portal, /id: 'mihojaderuta' as Tab, label: 'Hoja de ruta'/)
+  const manager = read('src/components/admin/TeamTasksManager.tsx')
+  assert.doesNotMatch(manager, /archivadas|ArchiveTaskModal|admin_restore_task/i)
+  assert.match(read('src/components/admin/DeleteTaskModal.tsx'), /¿Deseas borrar definitivamente esta tarea\?/)
+})
+
+test('Enviar a revisión y completar ya no exigen un entregable', () => {
+  const modal = read('src/components/team/TaskDetailModal.tsx')
+  assert.doesNotMatch(modal, /Es obligatorio añadir|Añade al menos un entregable|links\.length > 0\) void submitForReview/)
+})
+
+test('Dar de alta manda el correo de bienvenida en todos los flujos', () => {
+  for (const file of ['ClientAssignmentManager', 'CreateProjectModal', 'RolePermissionsManager', 'TeamPerformance']) {
+    assert.match(read(`src/components/admin/${file}.tsx`), /sendWelcomeEmail\(\{/, file)
+  }
 })
 
 test('Mi día y calendario del equipo usan la fecha de CDMX', () => {
