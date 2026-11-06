@@ -1,6 +1,6 @@
 /**
  * Selección múltiple de tareas (casillas junto al nombre) y acciones masivas:
- * reasignar y fecha "La necesito para" (admins), borrar definitivamente y marcar
+ * reasignar, fecha "La necesito para" y borrar definitivamente (admins), y marcar
  * realizadas (solo super admin).
  * Funciones puras para poder probarlas sin React.
  */
