@@ -57,7 +57,7 @@ export default function TeamTasksManager({ teamMembers, tasks, onTasksChange }: 
     [...teamMembers, ...tasks.flatMap(task => task.assignee ? [task.assignee] : [])],
   ))
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  // Borrar una tarea definitivamente: solo el super admin.
+  // Borrar una tarea definitivamente: solo administradores.
   const canDeleteTask = canDeleteTasks(user)
   const [superDeleteTask, setSuperDeleteTask] = useState<Task | null>(null)
   const [deleteNotice, setDeleteNotice] = useState('')

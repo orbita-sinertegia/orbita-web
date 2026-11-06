@@ -80,6 +80,7 @@ export function buildStatusChange(
 
 const PASSTHROUGH_PATTERNS = [
   /solo (los )?administradores/i,
+  /solo un administrador/i,
   /campo no permitido/i,
   /departamento cliente/i,
   /no tiene usuario/i,
