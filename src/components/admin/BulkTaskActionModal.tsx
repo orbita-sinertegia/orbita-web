@@ -20,7 +20,7 @@ interface Props {
 /**
  * Acciones en lote (selección múltiple), una tarea a la vez, con avance y fallas parciales.
  * Reasignar / Fecha "La necesito para": RPC admin_update_task (la misma del lápiz → avisos de reasignación).
- * Eliminar: RPC super_admin_delete_task (solo super admin; la base también lo exige).
+ * Eliminar: RPC super_admin_delete_task (solo administradores; la base también lo exige).
  * Completar (TEMPORAL, ENABLE_QUICK_COMPLETE): RPC super_admin_set_task_status (solo super admin).
  */
 const ACTION_UI = {

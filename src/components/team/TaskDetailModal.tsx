@@ -23,7 +23,7 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
   const isAdmin = user?.role === 'admin'
   // Editar/archivar: rol admin o super admin (igual que is_active_admin() en SQL).
   const canManageTasks = isAdmin || !!user?.is_super_admin
-  // Eliminar para siempre: solo el super admin.
+  // Borrar definitivamente: solo administradores.
   const canDeleteTask = canDeleteTasks(user)
   const [showDeleteTask, setShowDeleteTask] = useState(false)
   // TEMPORAL (ENABLE_QUICK_COMPLETE): palomita verde junto al bote, solo super admin.
