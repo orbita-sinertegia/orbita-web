@@ -11,7 +11,6 @@ import ProgressBar from '../shared/ProgressBar'
 import TaskDetailModal from '../team/TaskDetailModal'
 import CreateTaskModal from './CreateTaskModal'
 import EditTaskModal from './EditTaskModal'
-import ArchiveTaskModal from './ArchiveTaskModal'
 import DeleteTaskModal from './DeleteTaskModal'
 import BulkTaskActionModal from './BulkTaskActionModal'
 import TaskSelectionBar, { TaskCheckbox } from './TaskSelectionBar'
@@ -59,11 +58,10 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
   // Activo / Pausado / Finalizado y eliminar el proyecto: solo el super admin (la base también lo exige).
   const canChangeStatus = canChangeProjectStatus(user)
   const canDeleteProject = canDeleteProjects(user)
-  // Eliminar una tarea para siempre (bote de basura junto a archivar): solo el super admin.
+  // Borrar una tarea definitivamente: solo el super admin.
   const canDeleteTask = canDeleteTasks(user)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [archivingTask, setArchivingTask] = useState<Task | null>(null)
   const [deletingTask, setDeletingTask] = useState<Task | null>(null)
   const [showCreateTask, setShowCreateTask] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
@@ -93,7 +91,7 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
   const [finalizeConfirm, setFinalizeConfirm] = useState<{ counts: FinalizeCounts | null; confirmDelete: boolean } | null>(null)
   const [tab, setTab] = useState<'tareas' | 'hoja_ruta'>('tareas')
   const [delayEvents, setDelayEvents] = useState<DelayEventLike[]>([])
-  // Selección múltiple para archivar / eliminar varias de una.
+  // Selección múltiple para actuar sobre varias de una.
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [bulkAction, setBulkAction] = useState<{ action: BulkTaskAction; tasks: BulkTaskRef[] } | null>(null)
   // Edición en línea (Asignado a, Depto, Prioridad, La necesito para): cambios optimistas.
@@ -629,9 +627,7 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
         {isAdmin && (
           <TaskSelectionBar
             count={selectedVisibleIds.length}
-            canArchive={isAdmin}
             canDelete={canDeleteTask}
-            onArchive={() => openBulk('archivar')}
             onDelete={() => openBulk('eliminar')}
             onClear={() => setSelectedTaskIds([])}
             canComplete={canBulkQuickComplete(user)}
@@ -743,8 +739,7 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
                       <td className="px-4 py-3" onClick={event => event.stopPropagation()}>
                         <div className="flex justify-end gap-2">
                           <button type="button" onClick={() => setEditingTask(task)} title="Editar tarea" className="rounded-lg border border-blue-200 p-1.5 text-blue-600 hover:bg-blue-50"><Pencil size={14} /></button>
-                          <button type="button" onClick={() => setArchivingTask(task)} title="Archivar tarea" className="rounded-lg border border-amber-200 p-1.5 text-amber-600 hover:bg-amber-50"><Archive size={14} /></button>
-                          {canDeleteTask && <button type="button" onClick={() => setDeletingTask(task)} title="Eliminar tarea para siempre" aria-label={`Eliminar tarea ${task.title}`} className="rounded-lg border border-red-200 p-1.5 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>}
+                          {canDeleteTask && <button type="button" onClick={() => setDeletingTask(task)} title="Borrar definitivamente" aria-label={`Borrar definitivamente ${task.title}`} className="rounded-lg border border-red-200 p-1.5 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>}
                           {canQuickComplete(user, task) && <button type="button" disabled={quickBusyId === task.id} onClick={() => { void quickComplete(task) }} title="Marcar como realizada" aria-label={`Marcar como realizada ${task.title}`} className="rounded-lg border border-emerald-200 p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"><CheckCircle2 size={14} /></button>}
                         </div>
                       </td>
@@ -767,15 +762,11 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
         <EditTaskModal task={editingTask} onClose={() => setEditingTask(null)} onSaved={() => { setEditingTask(null); onUpdate() }} />
       )}
 
-      {archivingTask && (
-        <ArchiveTaskModal task={archivingTask} onClose={() => setArchivingTask(null)} onArchived={() => { setArchivingTask(null); onUpdate() }} />
-      )}
-
       {deletingTask && canDeleteTask && (
         <DeleteTaskModal task={deletingTask} onClose={() => setDeletingTask(null)} onDeleted={title => { setDeletingTask(null); setStatusNotice(taskDeletedNotice(title)); onUpdate() }} />
       )}
 
-      {bulkAction && isAdmin && (bulkAction.action === 'archivar' || bulkAction.action === 'reasignar' || bulkAction.action === 'necesito' || (bulkAction.action === 'eliminar' && canDeleteTask) || (bulkAction.action === 'completar' && canBulkQuickComplete(user))) && (
+      {bulkAction && isAdmin && (bulkAction.action === 'reasignar' || bulkAction.action === 'necesito' || (bulkAction.action === 'eliminar' && canDeleteTask) || (bulkAction.action === 'completar' && canBulkQuickComplete(user))) && (
         <BulkTaskActionModal
           action={bulkAction.action}
           tasks={bulkAction.tasks}
