@@ -1046,16 +1046,16 @@ test('Si la base rechaza el borrado por no ser super admin, se explica', async (
 const rowTask = { id: 'task-9', title: 'Guion anuncio 3', status: 'pendiente', priority: 'media', department: 'copy', project_id: 'project-1' }
 const isTrash = node => node.type === 'button' && node.props?.title === 'Borrar definitivamente'
 
-test('El botón de borrar solo aparece para el super admin y ya no existe archivar', () => {
+test('El botón de borrar solo aparece para administradores activos y ya no existe archivar', () => {
   const props = { ...projectProps, tasks: [rowTask] }
-  for (const user of [{ id: 'admin-1', role: 'admin', is_super_admin: false }, { id: 'sa-off', role: 'admin', is_super_admin: true, active: false }]) {
+  for (const user of [{ id: 'team-1', role: 'team', is_super_admin: false }, { id: 'sa-off', role: 'admin', is_super_admin: true, active: false }]) {
     const h = harness(projectFile, [], [], { user }, props)
     assert.equal(find(h.render(), node => node.type === 'button' && node.props?.title === 'Archivar tarea'), undefined, 'archivar ya no existe')
     assert.equal(find(h.render(), isTrash), undefined, `sin bote para ${user.id}`)
   }
-  const h = harness(projectFile, [], [], superAdminAuth, props)
+  const h = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, props)
   const trash = find(h.render(), isTrash)
-  assert.ok(trash)
+  assert.ok(trash, 'un admin sí puede borrar')
   trash.props.onClick()
   const modal = find(h.render(), node => node.props?.task?.id === 'task-9' && typeof node.props?.onDeleted === 'function')
   assert.ok(modal, 'abre el diálogo de eliminar con la tarea')
@@ -1127,14 +1127,12 @@ test('Seleccionar varias: la barra muestra cuántas, "todas" queda a medias y lu
   assert.equal(find(h.render(), isBar).props.count, 0, 'quitar selección')
 })
 
-test('Eliminar en lote: solo super admin; el admin puede reasignar', () => {
+test('Eliminar en lote: disponible para administradores; también pueden reasignar', () => {
   const props = { ...projectProps, tasks: multiTasks }
   const admin = harness(projectFile, [], [], { user: { id: 'admin-1', role: 'admin', is_super_admin: false } }, props)
   let bar = find(admin.render(), isBar)
-  assert.equal(bar.props.canDelete, false)
+  assert.equal(bar.props.canDelete, true)
   find(admin.render(), isRowBox('Guion 1')).props.onToggle()
-  find(admin.render(), isBar).props.onDelete()
-  assert.equal(find(admin.render(), isBulkModal), undefined, 'sin permiso no abre el diálogo de eliminar')
   find(admin.render(), isBar).props.onReassign()
   const modal = find(admin.render(), isBulkModal)
   assert.equal(modal.props.action, 'reasignar')

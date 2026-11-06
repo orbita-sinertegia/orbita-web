@@ -276,7 +276,10 @@ test('SQL de revisión de finalizar_borra: solo lectura, llaves foráneas y cont
 
 test('canDeleteTasks y aviso al eliminar', () => {
   assert.equal(ps.canDeleteTasks({ is_super_admin: true, active: true }), true)
-  assert.equal(ps.canDeleteTasks({ role: 'admin', is_super_admin: false }), false)
+  assert.equal(ps.canDeleteTasks({ role: 'admin', is_super_admin: false }), true)
+  assert.equal(ps.canDeleteTasks({ role: 'admin', is_super_admin: false, active: false }), false)
+  assert.equal(ps.canDeleteTasks({ role: 'team', is_super_admin: false }), false)
+  assert.equal(ps.canDeleteTasks({ role: 'client', is_super_admin: false }), false)
   assert.equal(ps.canDeleteTasks({ is_super_admin: true, active: false }), false)
   assert.equal(ps.taskDeletedNotice('Guion 1'), 'Tarea “Guion 1” eliminada para siempre.')
 })
@@ -289,6 +292,14 @@ test('el bote aparece también en Tareas del equipo (tabla y tarjetas) y en el d
   assert.match(detail, /const canDeleteTask = canDeleteTasks\(user\)/)
   assert.match(detail, /\{canDeleteTask && \(\s+<button type="button" onClick=\{\(\) => setShowDeleteTask\(true\)\} title="Borrar definitivamente"/)
   assert.match(detail, /\{showDeleteTask && canDeleteTask && \(/)
+})
+
+test('SQL admin_borra_tareas: solo administradores activos y sin sentencias destructivas al correrlo', () => {
+  const sql = read('sql/2026-11-06_admin_borra_tareas.sql')
+  assert.doesNotMatch(sql, /\b(drop|truncate)\b/i)
+  assert.match(sql, /if not public\.is_active_admin\(\) then\s+raise exception 'Solo un administrador puede borrar tareas definitivamente'/)
+  assert.match(sql, /revoke all on function public\.super_admin_delete_task\(uuid\) from public, anon;/)
+  assert.ok(sql.indexOf('PRUEBA FALLIDA') < sql.lastIndexOf('commit;'))
 })
 
 test('SQL borrar_tarea: RPC solo super admin que usa el borrado interno con foto, sin sentencias destructivas', () => {

@@ -12,7 +12,7 @@ interface Props {
 }
 
 /**
- * Borrar una tarea definitivamente (solo super admin, RPC super_admin_delete_task).
+ * Borrar una tarea definitivamente (solo administradores, RPC super_admin_delete_task).
  * Funciona también con tareas sin archivar. Queda una foto en task_audit_log.
  */
 export default function DeleteTaskModal({ task, onClose, onDeleted }: Props) {

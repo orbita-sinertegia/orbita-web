@@ -33,9 +33,9 @@ export function canDeleteProjects(user: Pick<User, 'is_super_admin' | 'active'> 
   return canChangeProjectStatus(user)
 }
 
-/** Solo el super admin activo puede eliminar tareas para siempre (la base también lo exige). */
-export function canDeleteTasks(user: Pick<User, 'is_super_admin' | 'active'> | null | undefined): boolean {
-  return canChangeProjectStatus(user)
+/** Solo un administrador activo, o el super admin, puede borrar tareas definitivamente (la base también lo exige). */
+export function canDeleteTasks(user: Pick<User, 'role' | 'is_super_admin' | 'active'> | null | undefined): boolean {
+  return !!user && user.active !== false && (user.role === 'admin' || !!user.is_super_admin)
 }
 
 /** Aviso tras eliminar una tarea para siempre. */

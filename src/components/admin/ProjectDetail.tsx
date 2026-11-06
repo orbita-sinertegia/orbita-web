@@ -58,7 +58,7 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
   // Activo / Pausado / Finalizado y eliminar el proyecto: solo el super admin (la base también lo exige).
   const canChangeStatus = canChangeProjectStatus(user)
   const canDeleteProject = canDeleteProjects(user)
-  // Borrar una tarea definitivamente: solo el super admin.
+  // Borrar una tarea definitivamente: solo administradores.
   const canDeleteTask = canDeleteTasks(user)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
