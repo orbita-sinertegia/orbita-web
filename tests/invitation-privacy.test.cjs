@@ -38,6 +38,17 @@ test('Google inicia sesión con el botón oficial y un nonce, con redirección c
   assert.match(google, /signInWithOAuth/)
 })
 
+test('el correo de bienvenida sale por Gmail, solo para administradores y con datos validados', () => {
+  const fn = read('supabase/functions/send-user-invitation/index.ts')
+  assert.match(fn, /host: 'smtp\.gmail\.com'/)
+  assert.match(fn, /port: 465/)
+  assert.match(fn, /Deno\.env\.get\('GMAIL_APP_PASSWORD'\)/)
+  assert.doesNotMatch(fn, /api\.resend\.com|RESEND_/)
+  assert.match(fn, /caller\.is_super_admin \|\| caller\.role === 'admin'/)
+  assert.match(fn, /EMAIL_PATTERN\.test\(recipient\)/)
+  assert.match(fn, /href="\$\{safeUrl\}"/)
+})
+
 test('el inicio de sesión usa el diseño de cristal con la animación del logo', () => {
   const page = read('src/components/auth/LoginPage.tsx')
   const css = read('src/components/auth/LoginCristal.css')
