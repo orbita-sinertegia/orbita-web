@@ -7,7 +7,6 @@ import {
   ClipboardList,
   MessageSquare,
   MessageCircle,
-  Map,
   Inbox,
   UserCheck,
   Link2,
@@ -30,7 +29,6 @@ import {
   History,
   Route,
   UserCheck2,
-  CalendarDays,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { isDateKeyOverdue } from '../../lib/dates'
@@ -42,7 +40,6 @@ import { isClientAttributableDelay } from '../../lib/taskDelays'
 import TeamCapacity from './TeamCapacity'
 import TeamTasksManager from './TeamTasksManager'
 import TeamCalendar from './TeamCalendar'
-import TeamAgenda from './TeamAgenda'
 import WeeklyScorecard from './WeeklyScorecard'
 import TeamPerformance from './TeamPerformance'
 import AttendancePanel from './AttendancePanel'
@@ -51,7 +48,6 @@ import CreateProjectModal from './CreateProjectModal'
 import TeamDashboard from '../team/TeamDashboard'
 import TeamMessagingHub from '../chat/TeamMessagingHub'
 import ClientChatsHub from '../chat/ClientChatsHub'
-import RoadmapView from '../roadmap/RoadmapView'
 import TaskRequestsPanel from './TaskRequestsPanel'
 import ClientAssignmentManager from './ClientAssignmentManager'
 import ClientReportModal from './ClientReportModal'
@@ -75,9 +71,7 @@ type View =
   | 'calendar'
   | 'performance'
   | 'attendance'
-  | 'agenda'
   | 'mytasks'
-  | 'roadmap'
   | 'client_roadmaps'
   | 'requests'
   | 'chat_team'
@@ -103,13 +97,11 @@ const ADMIN_NAV_ITEMS = [
   { id: 'overview', label: 'Proyectos', icon: FolderKanban },
   { id: 'team', label: 'Carga del equipo', icon: Users },
   { id: 'team_tasks', label: 'Tareas del equipo', icon: ListChecks },
-  { id: 'agenda', label: 'Agenda del equipo', icon: CalendarDays },
   { id: 'calendar', label: 'Calendario', icon: Calendar },
   { id: 'performance', label: 'Rendimiento', icon: TrendingUp },
   { id: 'attendance', label: 'Asistencia', icon: UserCheck2 },
   { id: 'mytasks', label: 'Mis tareas', icon: ClipboardList },
-  { id: 'roadmap', label: 'Hoja de Ruta', icon: Map },
-  { id: 'client_roadmaps', label: 'Hoja de ruta de clientes', icon: Route },
+  { id: 'client_roadmaps', label: 'Hoja de ruta', icon: Route },
   { id: 'clientes', label: 'Clientes', icon: UserCheck },
   { id: 'requests', label: 'Solicitudes', icon: Inbox },
   { id: 'chat_team', label: 'Chat Equipo', icon: MessageSquare },
@@ -362,7 +354,7 @@ export default function AdminDashboard() {
   // No debe desaparecer por permisos heredados o registros antiguos.
   const permittedAdminItems = user?.is_super_admin
     ? ADMIN_NAV_ITEMS
-    : ADMIN_NAV_ITEMS.filter((item) => item.id === 'performance' || item.id === 'attendance' || item.id === 'agenda' || (item.id !== 'permisos' && adminPermissions[item.id] !== false))
+    : ADMIN_NAV_ITEMS.filter((item) => item.id === 'performance' || item.id === 'attendance' || (item.id !== 'permisos' && adminPermissions[item.id] !== false))
   const navItems = [
     ...permittedAdminItems.map((item) => ({
       ...item,
@@ -373,9 +365,9 @@ export default function AdminDashboard() {
   const navGroups = [
     {
       label: 'Operación',
-      ids: ['overview', 'team', 'team_tasks', 'agenda', 'calendar', 'performance', 'attendance'],
+      ids: ['overview', 'team', 'team_tasks', 'calendar', 'performance', 'attendance'],
     },
-    { label: 'Trabajo', ids: ['mytasks', 'roadmap', 'client_roadmaps', 'requests'] },
+    { label: 'Trabajo', ids: ['mytasks', 'client_roadmaps', 'requests'] },
     {
       label: 'Comunicación',
       ids: ['chat_team', 'chat_clients', 'entregables'],
@@ -726,7 +718,6 @@ export default function AdminDashboard() {
             {view === 'team_tasks' && <>{finalizedNotice}<TeamTasksManager teamMembers={teamMembers} tasks={operationalTasks} onTasksChange={fetchAll} /></>}
 
             {/* Vista calendario */}
-            {view === 'agenda' && <>{finalizedNotice}<TeamAgenda teamMembers={teamMembers} adminMembers={adminMembers} tasks={operationalTasks} onTasksChange={fetchAll} /></>}
             {view === 'calendar' && <>{finalizedNotice}<TeamCalendar teamMembers={teamMembers} adminMembers={adminMembers} tasks={operationalTasks} onlineIds={onlineIds} onTasksChange={fetchAll} /></>}
 
             {/* Vista rendimiento */}
@@ -750,7 +741,6 @@ export default function AdminDashboard() {
             {view === 'mytasks' && <TeamDashboard embedded />}
 
             {/* Vista hoja de ruta */}
-            {view === 'roadmap' && <>{finalizedNotice}<RoadmapView tasks={operationalTasks} title="Todas las tareas del equipo" reportProjects={projects} onGenerateReport={setReportProject} /></>}
 
             {/* Vista hoja de ruta de clientes */}
             {view === 'client_roadmaps' && <ClientRoadmapsManager initialClientId={roadmapClientId} />}

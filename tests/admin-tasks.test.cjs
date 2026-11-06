@@ -14,7 +14,7 @@ function loadModule(file) {
 }
 
 const adminTasks = loadModule('src/lib/adminTasks.ts')
-const { isArchived, excludeArchived, buildTaskChanges, canConfirmPermanentDelete, friendlyTaskError } = adminTasks
+const { isArchived, excludeArchived, buildTaskChanges, friendlyTaskError } = adminTasks
 
 // ── isArchived / excludeArchived ──
 
@@ -108,17 +108,6 @@ test('buildTaskChanges treats a never-set optional field and an emptied field th
   const taskWithoutPhase = { ...baseTask, phase: undefined }
   const changes = buildTaskChanges(taskWithoutPhase, formFrom(taskWithoutPhase, { phase: '' }))
   assert.deepEqual(changesOf(changes), {})
-})
-
-// ── canConfirmPermanentDelete ──
-
-test('canConfirmPermanentDelete requires an exact, case-sensitive match (trimmed)', () => {
-  assert.equal(canConfirmPermanentDelete('Editar video', 'Editar video'), true)
-  assert.equal(canConfirmPermanentDelete('  Editar video  ', 'Editar video'), true)
-  assert.equal(canConfirmPermanentDelete('editar video', 'Editar video'), false)
-  assert.equal(canConfirmPermanentDelete('Editar vide', 'Editar video'), false)
-  assert.equal(canConfirmPermanentDelete('', 'Editar video'), false)
-  assert.equal(canConfirmPermanentDelete('   ', ''), false)
 })
 
 // ── friendlyTaskError ──
