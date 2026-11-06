@@ -9,17 +9,17 @@ interface Result { id: string; type: ResultType; title: string; subtitle: string
 
 const ADMIN_SECTIONS = [
   ['overview', 'Proyectos'], ['team', 'Carga del equipo'], ['team_tasks', 'Tareas del equipo'], ['calendar', 'Calendario'],
-  ['performance', 'Rendimiento'], ['mytasks', 'Mis tareas'], ['roadmap', 'Hoja de Ruta'], ['clientes', 'Clientes'],
+  ['performance', 'Rendimiento'], ['mytasks', 'Mis tareas'], ['client_roadmaps', 'Hoja de ruta'], ['clientes', 'Clientes'],
   ['requests', 'Solicitudes'], ['chat_team', 'Chat Equipo'], ['chat_clients', 'Chat Clientes'], ['entregables', 'Entregables'],
   ['funnels', 'Embudos'], ['permisos', 'Usuarios y permisos'], ['profile', 'Mi perfil'],
 ]
 const TEAM_SECTIONS = [
-  ['today', 'Mi día'], ['tasks', 'Mis tareas'], ['calendar', 'Mi calendario'], ['roadmap', 'Hoja de Ruta'],
+  ['today', 'Mi día'], ['tasks', 'Mis tareas'], ['calendar', 'Mi calendario'], ['client_roadmaps', 'Hoja de ruta'],
   ['chat_team', 'Chat del Equipo'], ['chat_clients', 'Chat con Clientes'], ['entregables', 'Entregables'], ['profile', 'Mi perfil'],
 ]
 const CLIENT_SECTIONS = [
   ['mistareas', 'Mis tareas'], ['progreso', 'Todas las tareas'], ['area', 'Tareas por área'],
-  ['calendario', 'Calendario'], ['roadmap', 'Hoja de Ruta'], ['chat', 'Chat con el equipo'],
+  ['calendario', 'Calendario'], ['mihojaderuta', 'Hoja de ruta'], ['chat', 'Chat con el equipo'],
   ['entregables', 'Entregables'], ['profile', 'Mi perfil'],
 ]
 

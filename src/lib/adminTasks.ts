@@ -78,16 +78,6 @@ export function buildStatusChange(
   return { p_status: status, p_completion_date: nextDate }
 }
 
-/**
- * Confirmación de borrado definitivo: exige escribir el título EXACTO (sensible a
- * mayúsculas) salvo espacios al inicio/fin, para que copiar y pegar siga funcionando pero
- * no se pueda confirmar "a ciegas" con cualquier texto parecido.
- */
-export function canConfirmPermanentDelete(input: string, title: string): boolean {
-  const normalizedInput = input.trim()
-  return normalizedInput.length > 0 && normalizedInput === title.trim()
-}
-
 const PASSTHROUGH_PATTERNS = [
   /solo (los )?administradores/i,
   /campo no permitido/i,

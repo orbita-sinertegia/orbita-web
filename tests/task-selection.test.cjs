@@ -43,10 +43,10 @@ test('Textos en español: contador, confirmación y resultado', () => {
   assert.equal(sel.selectedCountLabel(1), '1 seleccionada')
   assert.equal(sel.selectedCountLabel(4), '4 seleccionadas')
   assert.match(sel.bulkConfirmText('eliminar', 3), /3 tareas.*permanente y no se puede deshacer/)
-  assert.match(sel.bulkConfirmText('archivar', 1), /1 tarea a Archivadas/)
+  assert.match(sel.bulkConfirmText('necesito', 1), /fecha "La necesito para" de 1 tarea/)
   assert.equal(sel.bulkResultNotice({ action: 'eliminar', okIds: ['a', 'b'], failed: [] }), '2 tareas eliminadas para siempre.')
-  assert.equal(sel.bulkResultNotice({ action: 'archivar', okIds: ['a'], failed: [] }), '1 tarea archivada.')
-  assert.equal(sel.bulkResultNotice({ action: 'archivar', okIds: ['a'], failed: [{ id: 'b', title: 'B', error: 'x' }] }), '1 tarea archivada. No se pudo archivar 1 tarea.')
+  assert.equal(sel.bulkResultNotice({ action: 'necesito', okIds: ['a'], failed: [] }), '1 tarea con fecha actualizada.')
+  assert.equal(sel.bulkResultNotice({ action: 'necesito', okIds: ['a'], failed: [{ id: 'b', title: 'B', error: 'x' }] }), '1 tarea con fecha actualizada. No se pudo cambiar la fecha de 1 tarea.')
   assert.equal(sel.bulkResultNotice({ action: 'eliminar', okIds: [], failed: [{ id: 'b', title: 'B', error: 'x' }, { id: 'c', title: 'C', error: 'y' }] }), 'No se pudo eliminar ninguna de las 2 tareas.')
 })
 

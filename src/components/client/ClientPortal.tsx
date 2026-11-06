@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { ExternalLink, Send, Camera, Loader2, PlusCircle, CheckCircle, X, ChevronDown, CheckCheck, ClipboardList, LayoutGrid, CalendarDays, Map as MapIcon, Route, MessageCircle, Link2, Clock3, Eye, Sparkles, UserRound, LogOut, Upload, FileUp, History } from 'lucide-react'
+import { ExternalLink, Send, Camera, Loader2, PlusCircle, CheckCircle, X, ChevronDown, CheckCheck, ClipboardList, LayoutGrid, CalendarDays, Route, MessageCircle, Link2, Clock3, Eye, Sparkles, UserRound, LogOut, Upload, FileUp, History } from 'lucide-react'
 import { projectStatusLabel, sortProjectsByStatus } from '../../lib/projectStatus'
 import { supabase } from '../../lib/supabase'
 import { cdmxTodayKey, isDateKeyOverdue } from '../../lib/dates'
@@ -10,7 +10,6 @@ import PriorityBadge from '../shared/PriorityBadge'
 import ClientCalendar from './ClientCalendar'
 import ClientChatRoom from '../chat/ClientChatRoom'
 import ClientDeliverables from '../admin/ClientDeliverables'
-import RoadmapView from '../roadmap/RoadmapView'
 import RequestTaskModal from './RequestTaskModal'
 import Logo from '../shared/Logo'
 import TopBarActions from '../shared/TopBarActions'
@@ -38,15 +37,14 @@ function dueLabel(commitmentDate: string): { text: string; late: boolean } {
   return { text: `Vence en ${diffDays} día${diffDays === 1 ? '' : 's'}`, late: false }
 }
 
-type Tab = 'mistareas' | 'progreso' | 'area' | 'calendario' | 'roadmap' | 'mihojaderuta' | 'chat' | 'entregables' | 'profile'
+type Tab = 'mistareas' | 'progreso' | 'area' | 'calendario' | 'mihojaderuta' | 'chat' | 'entregables' | 'profile'
 
 const CLIENT_NAV_ITEMS = [
   { id: 'mistareas' as Tab, label: 'Mis pendientes', icon: CheckCheck },
   { id: 'progreso' as Tab, label: 'Todas las tareas', icon: ClipboardList },
   { id: 'area' as Tab, label: 'Por área', icon: LayoutGrid },
   { id: 'calendario' as Tab, label: 'Calendario', icon: CalendarDays },
-  { id: 'roadmap' as Tab, label: 'Hoja de Ruta', icon: MapIcon },
-  { id: 'mihojaderuta' as Tab, label: 'Mi hoja de ruta', icon: Route },
+  { id: 'mihojaderuta' as Tab, label: 'Hoja de ruta', icon: Route },
   { id: 'chat' as Tab, label: 'Chat con el equipo', icon: MessageCircle },
   { id: 'entregables' as Tab, label: 'Entregables', icon: Link2 },
 ]
@@ -1037,12 +1035,7 @@ export default function ClientPortal() {
         <ClientCalendar tasks={projectTasks} project={selectedProject} />
       )}
 
-      {/* ── Tab: Hoja de Ruta ── */}
-      {activeTab === 'roadmap' && (
-        <RoadmapView tasks={projectTasks} title={selectedProject?.name} projects={selectedProject ? [selectedProject] : []} />
-      )}
-
-      {/* ── Tab: Mi hoja de ruta (fases, hitos y lanzamiento, sin nombres internos) ── */}
+      {/* ── Tab: Hoja de ruta (fases, hitos y lanzamiento, sin nombres internos) ── */}
       {activeTab === 'mihojaderuta' && selectedProject && (
         <ClientRoadmapView project={selectedProject} tasks={projectTasks} delayEvents={projectDelayEvents} mode="cliente" />
       )}

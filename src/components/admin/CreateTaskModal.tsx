@@ -173,10 +173,6 @@ export default function CreateTaskModal({ projects, teamMembers, defaultProjectI
       setError('Este proyecto no tiene un usuario de cliente activo; invita al cliente al portal antes de crear tareas de su departamento.')
       return
     }
-    if (referenceLinks.length === 0 && pendingFiles.length === 0) {
-      setError('Agrega al menos un entregable: un enlace o un archivo')
-      return
-    }
     if (saveToTemplate && (!templateType || templatesLoading)) {
       setError('Selecciona el embudo donde quieres fijar esta tarea')
       return
@@ -327,7 +323,7 @@ export default function CreateTaskModal({ projects, teamMembers, defaultProjectI
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Entregables *</label>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Entregables (opcional)</label>
             <div className="grid gap-2 sm:grid-cols-[minmax(0,.8fr)_minmax(0,1.4fr)_auto]">
               <input value={linkDraft.label} onChange={event => setLinkDraft(current => ({ ...current, label: event.target.value }))} placeholder="Nombre (opcional)" className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
               <input type="url" value={linkDraft.url} onChange={event => setLinkDraft(current => ({ ...current, url: event.target.value }))} placeholder="https://..." className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />

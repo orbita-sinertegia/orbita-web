@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, ExternalLink, Send, CheckCircle, RotateCcw, ShieldCheck, Plus, Trash2, MessageSquare, Pencil, Upload, FileCode, Image as ImageIcon, File as FileIcon, ListChecks, Timer, Play, Square, Link2, AlertTriangle, ChevronDown, SlidersHorizontal, UserX, Archive } from 'lucide-react'
+import { X, ExternalLink, Send, CheckCircle, RotateCcw, ShieldCheck, Plus, Trash2, MessageSquare, Pencil, Upload, FileCode, Image as ImageIcon, File as FileIcon, ListChecks, Timer, Play, Square, Link2, AlertTriangle, ChevronDown, SlidersHorizontal, UserX } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Task, User, Comment, Subtask, TimeEntry } from '../../types'
 import { isClientAttributableDelay, delayDaysFor } from '../../lib/taskDelays'
 import EditTaskModal from '../admin/EditTaskModal'
-import ArchiveTaskModal from '../admin/ArchiveTaskModal'
 import DeleteTaskModal from '../admin/DeleteTaskModal'
 import { canDeleteTasks } from '../../lib/projectStatus'
 import { canQuickComplete, quickCompleteArgs } from '../../lib/quickComplete'
@@ -71,7 +70,6 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [showEditTask, setShowEditTask] = useState(false)
-  const [showArchiveTask, setShowArchiveTask] = useState(false)
 
   // Subtareas
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
@@ -538,12 +536,8 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
                   className="text-blue-500 hover:text-blue-700 transition p-1.5 rounded-lg hover:bg-blue-50">
                   <Pencil size={16} />
                 </button>
-                <button type="button" onClick={() => setShowArchiveTask(true)} title="Archivar tarea"
-                  className="text-amber-500 hover:text-amber-700 transition p-1.5 rounded-lg hover:bg-amber-50">
-                  <Archive size={16} />
-                </button>
                 {canDeleteTask && (
-                  <button type="button" onClick={() => setShowDeleteTask(true)} title="Eliminar tarea para siempre"
+                  <button type="button" onClick={() => setShowDeleteTask(true)} title="Borrar definitivamente"
                     className="text-red-500 hover:text-red-700 transition p-1.5 rounded-lg hover:bg-red-50">
                     <Trash2 size={16} />
                   </button>
@@ -800,9 +794,6 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
                 </button>
               </div>
             )}
-            {submitAttempted && links.length === 0 && (
-              <p className="text-xs text-red-500 mb-2 font-medium">📎 Es obligatorio añadir al menos un link o archivo del entregable</p>
-            )}
             <div className="space-y-1.5 mb-3">
               {links.map(link => {
                 const LinkIcon = fileIconFor(link.url)
@@ -861,8 +852,7 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
                 await supabase.from('tasks').update({ status: 'completada' }).eq('id', task.id)
                 await updateReviewStatus('aprobada')
                 setBusy(false); onUpdate(); onClose()
-              }} disabled={busy || links.length === 0}
-                title={links.length === 0 ? 'Añade al menos un entregable primero' : undefined}
+              }} disabled={busy}
                 className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-lg transition disabled:opacity-50">
                 <CheckCircle size={14} />
                 {busy ? 'Completando...' : 'Marcar como completada'}
@@ -890,7 +880,7 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
               </div>
               <button type="button" onClick={() => {
                 setSubmitAttempted(true)
-                if (links.length > 0) void submitForReview()
+                void submitForReview()
               }} disabled={busy || (approverIds.length === 0 && !reviewerId)}
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition disabled:opacity-50">
                 <Send size={14} />
@@ -1099,9 +1089,6 @@ export default function TaskDetailModal({ task, onClose, onUpdate, onReviewDone,
 
       {showEditTask && (
         <EditTaskModal task={task} onClose={() => setShowEditTask(false)} onSaved={() => { setShowEditTask(false); onUpdate(); onClose() }} />
-      )}
-      {showArchiveTask && (
-        <ArchiveTaskModal task={task} onClose={() => setShowArchiveTask(false)} onArchived={() => { setShowArchiveTask(false); onUpdate(); onClose() }} />
       )}
       {showDeleteTask && canDeleteTask && (
         <DeleteTaskModal task={task} onClose={() => setShowDeleteTask(false)} onDeleted={() => { setShowDeleteTask(false); onUpdate(); onClose() }} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { TrendingUp, TrendingDown, Clock, Building2, Star, ChevronLeft, ChevronRight, X, Copy, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { sendWelcomeEmail } from '../../lib/inviteEmail'
 import type { Task, User, Department } from '../../types'
 import UserAvatar from '../shared/UserAvatar'
 import { resolvedWorkSchedule } from '../../lib/workSchedule'
@@ -97,7 +98,9 @@ export default function TeamPerformance({ teamMembers, tasks }: Props) {
     setInviteSaving(true); setInviteError('')
     const { data, error } = await supabase.from('team_invitations').insert({ email: inviteForm.email.trim(), full_name: inviteForm.full_name.trim() || null, role: inviteForm.role, department: inviteForm.department || null }).select('id').single()
     if (error || !data) { setInviteError('No se pudo generar la invitación: ' + (error?.message || '')); setInviteSaving(false); return }
-    setInviteLink(`${window.location.origin}?team_invite=${data.id}`); setInviteSaving(false)
+    const url = `${window.location.origin}?team_invite=${data.id}`
+    setInviteLink(url); setInviteSaving(false)
+    void sendWelcomeEmail({ email: inviteForm.email.trim(), fullName: inviteForm.full_name.trim(), roleLabel: inviteForm.role === 'admin' ? 'administrador' : 'integrante del equipo', inviteUrl: url })
   }
 
   function copyInviteLink() {

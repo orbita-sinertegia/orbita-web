@@ -1,4 +1,4 @@
-import { Archive, CalendarDays, CheckCircle2, Trash2, UserRoundPen, X } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Trash2, UserRoundPen, X } from 'lucide-react'
 import { selectedCountLabel, type SelectAllState } from '../../lib/taskSelection'
 
 /** Casilla con estado "a medias" (indeterminado) para seleccionar tareas. */
@@ -22,9 +22,7 @@ export function TaskCheckbox({ state, onToggle, label }: { state: SelectAllState
 
 interface BarProps {
   count: number
-  canArchive: boolean
   canDelete: boolean
-  onArchive: () => void
   onDelete: () => void
   onClear: () => void
   /** TEMPORAL (ENABLE_QUICK_COMPLETE): "Marcar realizadas", solo super admin. */
@@ -37,7 +35,7 @@ interface BarProps {
 }
 
 /** Barra de acciones cuando hay 1+ tareas seleccionadas. */
-export default function TaskSelectionBar({ count, canArchive, canDelete, onArchive, onDelete, onClear, canComplete = false, onComplete, canEdit = false, onReassign, onSetNeeded }: BarProps) {
+export default function TaskSelectionBar({ count, canDelete, onDelete, onClear, canComplete = false, onComplete, canEdit = false, onReassign, onSetNeeded }: BarProps) {
   if (count < 1) return null
   return (
     <div role="toolbar" aria-label="Acciones para tareas seleccionadas" className="flex flex-wrap items-center gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5">
@@ -52,11 +50,6 @@ export default function TaskSelectionBar({ count, canArchive, canDelete, onArchi
           <CalendarDays size={14} /> Fecha “La necesito para”
         </button>
       )}
-      {canArchive && (
-        <button type="button" onClick={onArchive} className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold text-amber-700 hover:bg-amber-50">
-          <Archive size={14} /> Archivar
-        </button>
-      )}
       {canComplete && onComplete && (
         <button type="button" onClick={onComplete} className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
           <CheckCircle2 size={14} /> Marcar realizadas
@@ -64,7 +57,7 @@ export default function TaskSelectionBar({ count, canArchive, canDelete, onArchi
       )}
       {canDelete && (
         <button type="button" onClick={onDelete} className="flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50">
-          <Trash2 size={14} /> Eliminar
+          <Trash2 size={14} /> Borrar definitivamente
         </button>
       )}
       <button type="button" onClick={onClear} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 hover:bg-white hover:text-gray-800">

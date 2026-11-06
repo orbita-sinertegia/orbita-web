@@ -24,21 +24,25 @@ serve(async request => {
     const { data: authData } = await admin.auth.getUser(token)
     if (!authData.user) throw new Error('Sesión no válida')
 
-    const { data: caller } = await admin.from('users').select('is_super_admin').eq('id', authData.user.id).single()
-    if (!caller?.is_super_admin) return new Response(JSON.stringify({ error: 'Solo el superadmin puede invitar usuarios' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } })
+    const { data: caller } = await admin.from('users').select('role, is_super_admin, active').eq('id', authData.user.id).single()
+    const canInvite = !!caller && caller.active !== false && (caller.is_super_admin || caller.role === 'admin')
+    if (!canInvite) return new Response(JSON.stringify({ error: 'Solo un administrador puede invitar usuarios' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } })
     if (!resendKey) throw new Error('Falta configurar RESEND_API_KEY en Supabase Edge Functions')
 
     const { email, fullName, roleLabel, inviteUrl } = await request.json()
     const safeName = escapeHtml(String(fullName || 'te invitamos'))
     const safeRole = escapeHtml(String(roleLabel || 'usuario'))
+    const url = new URL(String(inviteUrl))
+    if (url.protocol !== 'https:' && url.hostname !== 'localhost') throw new Error('Enlace de invitación no válido')
+    const safeUrl = escapeHtml(url.toString())
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: `Órbita <${Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev'}>`,
         to: [email],
-        subject: `Invitación para unirte como ${roleLabel} en Órbita`,
-        html: `<div style="font-family:Arial,sans-serif;background:#f4f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 30px;color:white;background:linear-gradient(120deg,#9333EA,#6B21A8,#A855F7)"><b style="font-size:20px">Órbita</b></div><div style="padding:30px"><h2 style="color:#111827">Hola, ${safeName}</h2><p style="color:#667085;line-height:1.6">Recibiste una invitación para formar parte de Órbita con el perfil <b>${safeRole}</b>.</p><a href="${inviteUrl}" style="display:inline-block;margin-top:16px;background:#9333EA;color:white;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:bold">Aceptar invitación</a><p style="margin-top:24px;color:#98a2b3;font-size:12px">Si no esperabas esta invitación, puedes ignorar este correo.</p></div></div></div>`,
+        subject: 'Te damos la bienvenida a Órbita',
+        html: `<div style="font-family:Arial,sans-serif;background:#f4f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 30px;color:white;background:linear-gradient(120deg,#9333EA,#6B21A8,#A855F7)"><b style="font-size:20px">Órbita</b></div><div style="padding:30px"><h2 style="color:#111827">Hola, ${safeName}</h2><p style="color:#667085;line-height:1.6">Te damos la bienvenida a Órbita. Tu acceso con el perfil <b>${safeRole}</b> ya está listo: crea tu cuenta con este botón.</p><a href="${safeUrl}" style="display:inline-block;margin-top:16px;background:#9333EA;color:white;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:bold">Crear mi cuenta</a><p style="margin-top:24px;color:#98a2b3;font-size:12px">Si no esperabas este correo, puedes ignorarlo.</p></div></div></div>`,
       }),
     })
     if (!response.ok) throw new Error(await response.text())

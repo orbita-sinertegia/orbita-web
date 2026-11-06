@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { MessageSquare, CheckCircle, Clock, ClipboardList, MessageCircle, Map as MapIcon, Plus, CalendarDays, Link2, Loader2, XCircle, FileText, ChevronDown, Home, AlertTriangle, ArrowRight, PlayCircle, Eye, UserRound, PanelLeftClose, PanelLeftOpen, LogOut, Route } from 'lucide-react'
+import { MessageSquare, CheckCircle, Clock, ClipboardList, MessageCircle, Plus, CalendarDays, Link2, Loader2, XCircle, FileText, ChevronDown, Home, AlertTriangle, ArrowRight, PlayCircle, Eye, UserRound, PanelLeftClose, PanelLeftOpen, LogOut, Route } from 'lucide-react'
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { hideDormantTasks } from '../../lib/projectStatus'
 import { supabase } from '../../lib/supabase'
@@ -17,14 +17,13 @@ import '../../styles/DashboardV2.css'
 import TaskDetailModal from './TaskDetailModal'
 import TeamMessagingHub from '../chat/TeamMessagingHub'
 import ClientChatsHub from '../chat/ClientChatsHub'
-import RoadmapView from '../roadmap/RoadmapView'
 import TeamCalendarView from './TeamCalendarView'
 import CreateTaskModal from '../admin/CreateTaskModal'
 import ClientDeliverables from '../admin/ClientDeliverables'
 import ClientRoadmapsManager from '../admin/ClientRoadmapsManager'
 import UserProfile from '../shared/UserProfile'
 
-type TeamView = 'today' | 'tasks' | 'calendar' | 'roadmap' | 'client_roadmaps' | 'chat_team' | 'chat_clients' | 'entregables' | 'profile'
+type TeamView = 'today' | 'tasks' | 'calendar' | 'client_roadmaps' | 'chat_team' | 'chat_clients' | 'entregables' | 'profile'
 
 // client_roadmaps es opcional y apagada por defecto — solo aparece si un admin la activa
 // explícitamente en Permisos (ver fetchPermissions).
@@ -32,8 +31,7 @@ const TEAM_NAV_ITEMS = [
   { id: 'today' as TeamView, label: 'Mi día', icon: Home },
   { id: 'tasks' as TeamView, label: 'Mis tareas', icon: ClipboardList },
   { id: 'calendar' as TeamView, label: 'Mi Calendario', icon: CalendarDays },
-  { id: 'roadmap' as TeamView, label: 'Hoja de Ruta', icon: MapIcon },
-  { id: 'client_roadmaps' as TeamView, label: 'Hoja de ruta de clientes', icon: Route },
+  { id: 'client_roadmaps' as TeamView, label: 'Hoja de ruta', icon: Route },
   { id: 'chat_team' as TeamView, label: 'Chat del Equipo', icon: MessageSquare },
   { id: 'chat_clients' as TeamView, label: 'Chat con Clientes', icon: MessageCircle },
   { id: 'entregables' as TeamView, label: 'Entregables', icon: Link2 },
@@ -172,7 +170,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
   }, [])
 
   useEffect(() => {
-    const openProject = () => setTeamView('roadmap')
+    const openProject = () => setTeamView('tasks')
     const openClient = () => setTeamView('chat_clients')
     const openPerson = () => setTeamView('chat_team')
     const openSection = (event: Event) => {
@@ -209,7 +207,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
   // se leen solo campos de planeación (sin responsables) de las tareas de mis proyectos.
   const roadmapProjectIds = Array.from(new Set(tasks.map(task => task.project_id).filter(Boolean))).sort().join(',')
   useEffect(() => {
-    if ((teamView !== 'roadmap' && teamView !== 'calendar') || !roadmapProjectIds) return
+    if (teamView !== 'calendar' || !roadmapProjectIds) return
     let cancelled = false
     supabase
       .from('tasks')
@@ -475,10 +473,8 @@ export default function TeamDashboard({ embedded = false }: Props) {
         <TeamCalendarView tasks={tasks} contextTasks={roadmapContextTasks} onSelectTask={setSelectedTask} onTasksChange={fetchTasks} />
       )}
 
-      {/* Vista: Hoja de Ruta */}
-      {teamView === 'roadmap' && <RoadmapView tasks={tasks} title="Mis tareas en el tiempo" onSelectTask={setSelectedTask} contextTasks={roadmapContextTasks} />}
 
-      {/* Vista: Hoja de ruta de clientes (opcional, solo si un admin la activó) */}
+      {/* Vista: Hoja de ruta (opcional, solo si un admin la activó) */}
       {teamView === 'client_roadmaps' && <ClientRoadmapsManager restricted />}
 
       {/* Vista: Chat del Equipo */}

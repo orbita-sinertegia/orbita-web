@@ -1,11 +1,11 @@
 /**
  * Selección múltiple de tareas (casillas junto al nombre) y acciones masivas:
- * archivar, reasignar y fecha "La necesito para" (admins), eliminar para siempre y marcar
+ * reasignar y fecha "La necesito para" (admins), borrar definitivamente y marcar
  * realizadas (solo super admin).
  * Funciones puras para poder probarlas sin React.
  */
 
-export type BulkTaskAction = 'archivar' | 'eliminar' | 'completar' | 'reasignar' | 'necesito'
+export type BulkTaskAction = 'eliminar' | 'completar' | 'reasignar' | 'necesito'
 export type SelectAllState = 'none' | 'some' | 'all'
 
 export interface BulkTaskRef {
@@ -56,7 +56,7 @@ export function toggleSelected(selected: string[], id: string): string[] {
   return selected.includes(id) ? selected.filter(item => item !== id) : [...selected, id]
 }
 
-/** Solo cuentan las seleccionadas que siguen visibles (filtros, tareas ya borradas o archivadas). */
+/** Solo cuentan las seleccionadas que siguen visibles (filtros o tareas ya borradas). */
 export function visibleSelection(selected: string[], visibleIds: string[]): string[] {
   const visible = new Set(visibleIds)
   return selected.filter(id => visible.has(id))
@@ -90,8 +90,7 @@ export function bulkConfirmText(action: BulkTaskAction, count: number): string {
   if (action === 'eliminar') return `Se eliminarán para siempre ${plural(count)}, con sus comentarios, enlaces, subtareas, tiempos y calificaciones. Esta acción es permanente y no se puede deshacer.`
   if (action === 'completar') return `Se marcarán ${plural(count)} como realizadas, con fecha de realización de hoy. Las que ya estaban realizadas se quedan igual.`
   if (action === 'reasignar') return `Se reasignarán ${plural(count)} a la persona que elijas. Cada quien recibe su aviso. Las tareas del cliente se saltan.`
-  if (action === 'necesito') return `Se cambiará la fecha "La necesito para" de ${plural(count)}.`
-  return `Se moverán ${plural(count)} a Archivadas. Puedes restaurarlas después.`
+  return `Se cambiará la fecha "La necesito para" de ${plural(count)}.`
 }
 
 /** Aviso final (también cuando algunas fallan). */
@@ -102,12 +101,11 @@ export function bulkResultNotice(result: BulkResult): string {
   const verb = result.action === 'eliminar' ? (ok === 1 ? 'eliminada para siempre' : 'eliminadas para siempre')
     : result.action === 'completar' ? (ok === 1 ? 'marcada como realizada' : 'marcadas como realizadas')
       : result.action === 'reasignar' ? (ok === 1 ? 'reasignada' : 'reasignadas')
-        : result.action === 'necesito' ? 'con fecha actualizada'
-          : (ok === 1 ? 'archivada' : 'archivadas')
+        : 'con fecha actualizada'
   const skippedText = skipped ? ` Se ${skipped === 1 ? 'saltó' : 'saltaron'} ${plural(skipped)}.` : ''
   if (!failed) return ok || !skipped ? `${plural(ok)} ${verb}.${skippedText}` : `No hubo cambios.${skippedText}`
   const failVerb = result.action === 'eliminar' ? 'eliminar' : result.action === 'completar' ? 'marcar como realizada'
-    : result.action === 'reasignar' ? 'reasignar' : result.action === 'necesito' ? 'cambiar la fecha de' : 'archivar'
+    : result.action === 'reasignar' ? 'reasignar' : 'cambiar la fecha de'
   if (!ok) return `No se pudo ${failVerb} ninguna de las ${plural(failed)}.${skippedText}`
   return `${plural(ok)} ${verb}. No se pudo ${failVerb} ${plural(failed)}.${skippedText}`
 }

@@ -127,7 +127,6 @@ test('el panel oculta por omisión las pendientes de proyectos finalizados y per
   const src = read('src/components/admin/AdminDashboard.tsx')
   assert.match(src, /hideDormantTasks\(tasks, showFinalized\)/)
   assert.match(src, /<TeamCalendar [^>]*tasks=\{operationalTasks\}/)
-  assert.match(src, /<RoadmapView tasks=\{operationalTasks\}/)
   assert.match(src, /<TeamTasksManager [^>]*tasks=\{operationalTasks\}/)
   assert.match(src, /<WeeklyScorecard [^>]*tasks=\{metricTasks\}/)
   // El detalle del proyecto sigue recibiendo todas sus tareas (historial).
@@ -284,11 +283,11 @@ test('canDeleteTasks y aviso al eliminar', () => {
 
 test('el bote aparece también en Tareas del equipo (tabla y tarjetas) y en el detalle de la tarea, solo con canDeleteTasks', () => {
   const manager = read('src/components/admin/TeamTasksManager.tsx')
-  assert.equal((manager.match(/\{canDeleteTask && <button [^>]*onClick=\{\(\) => setSuperDeleteTask\(task\)\} title="Eliminar tarea para siempre"/g) || []).length, 2)
+  assert.equal((manager.match(/\{canDeleteTask && <button [^>]*onClick=\{\(\) => setSuperDeleteTask\(task\)\} title="Borrar definitivamente"/g) || []).length, 2)
   assert.match(manager, /const canDeleteTask = canDeleteTasks\(user\)/)
   const detail = read('src/components/team/TaskDetailModal.tsx')
   assert.match(detail, /const canDeleteTask = canDeleteTasks\(user\)/)
-  assert.match(detail, /\{canDeleteTask && \(\s+<button type="button" onClick=\{\(\) => setShowDeleteTask\(true\)\} title="Eliminar tarea para siempre"/)
+  assert.match(detail, /\{canDeleteTask && \(\s+<button type="button" onClick=\{\(\) => setShowDeleteTask\(true\)\} title="Borrar definitivamente"/)
   assert.match(detail, /\{showDeleteTask && canDeleteTask && \(/)
 })
 

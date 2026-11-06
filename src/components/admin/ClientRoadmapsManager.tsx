@@ -201,7 +201,7 @@ export default function ClientRoadmapsManager({ restricted = false, initialClien
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <div>
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900"><MapIcon size={20} className="text-blue-700" /> Hoja de ruta de clientes</h2>
+        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900"><MapIcon size={20} className="text-blue-700" /> Hoja de ruta</h2>
         <p className="text-sm text-gray-500">Busca un cliente o revisa el resumen de todos los proyectos activos.</p>
       </div>
 
