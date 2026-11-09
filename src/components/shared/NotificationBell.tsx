@@ -85,6 +85,9 @@ export default function NotificationBell() {
         taskId: notification.task_id,
         taskTitle: taskTitleFromMessage(notification.message),
       } }))
+    } else if (notification.type === 'attendance') {
+      setOpen(false)
+      window.dispatchEvent(new CustomEvent('open-section', { detail: { view: 'attendance' } }))
     } else if (notification.title?.includes('Chat del Equipo')) {
       setOpen(false)
       window.dispatchEvent(new CustomEvent('open-chat', { detail: { room: 'team' } }))
