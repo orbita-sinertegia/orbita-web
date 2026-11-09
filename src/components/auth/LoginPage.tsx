@@ -76,7 +76,7 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
             interactive
             parallax
             animationSpeed={1}
-            linesGradient={['#581C87', '#A855F7', '#C084FC']}
+            linesGradient={['#2D2B55', '#6A5ACD', '#F4A62A']}
           />
         </Suspense>
       </div>

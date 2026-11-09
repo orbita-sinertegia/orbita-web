@@ -5,12 +5,12 @@
   width: min(400px, calc(100% - 32px));
   margin: 58px auto 24px;
   padding: 66px 24px 24px;
-  border: 1px solid #c49bec80;
+  border: 1px solid #A678B980;
   border-radius: 26px;
-  background: rgb(47 24 77 / 90%);
+  background: rgb(26 26 31 / 88%);
   backdrop-filter: blur(14px);
-  box-shadow: 0 18px 50px rgb(18 5 35 / 35%);
-  color: #fff7ff;
+  box-shadow: 0 18px 50px rgb(10 10 14 / 40%);
+  color: #FBF7F0;
 }
 
 .login-cristal__emblema {
@@ -23,8 +23,8 @@
   width: 94px;
   height: 94px;
   border-radius: 24px;
-  background: #f2e3ff;
-  box-shadow: 0 8px 24px rgb(30 8 55 / 30%);
+  background: #F0D9B5;
+  box-shadow: 0 8px 24px rgb(26 26 31 / 30%);
 }
 
 .login-cristal__emblema img {
@@ -58,7 +58,7 @@
 
 .login-cristal__subtitulo {
   margin: 8px 0 22px;
-  color: #e6d1f7;
+  color: #E3DDF5;
   text-align: center;
 }
 
@@ -72,9 +72,9 @@
   width: 100%;
   min-height: 46px;
   padding: 10px 14px;
-  border: 1px solid #9a75ba;
+  border: 1px solid #6A5ACD;
   border-radius: 10px;
-  background: #482d66;
+  background: #2D2B55;
   color: inherit;
   font: inherit;
 }
@@ -90,11 +90,11 @@
 }
 
 .login-cristal input::placeholder {
-  color: #dbc4ed;
+  color: #D3CCF3;
 }
 
 .login-cristal :is(button, input, a):focus-visible {
-  outline: 2px solid #edc8ff;
+  outline: 2px solid #F4A62A;
   outline-offset: 3px;
 }
 
@@ -111,7 +111,7 @@
   align-items: center;
   gap: 12px;
   margin: 16px 0;
-  color: #e6d1f7;
+  color: #E3DDF5;
   font-size: 0.85rem;
 }
 
@@ -120,7 +120,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: #9a75ba;
+  background: #6A5ACD;
 }
 
 .login-cristal .login-cristal__recuperar,
@@ -130,7 +130,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: #f0d2ff;
+  color: #F0D9B5;
   font-size: 0.85rem;
   font-weight: 400;
 }
@@ -153,11 +153,11 @@
 
 .login-cristal .login-cristal__entrar {
   border: 0;
-  background: linear-gradient(110deg, #7626ba, #8a39c7);
+  background: linear-gradient(110deg, #5546B5, #6A5ACD);
 }
 
 .login-cristal .login-cristal__entrar:hover:not(:disabled) {
-  background: linear-gradient(110deg, #8330c9, #9747d6);
+  background: linear-gradient(110deg, #6A5ACD, #7D6FD5);
 }
 
 .login-cristal__google {
@@ -173,7 +173,7 @@
   justify-content: center;
   gap: 8px;
   background: #fff;
-  color: #3c2a52;
+  color: #2D2B55;
 }
 
 .login-cristal__clave {
@@ -195,7 +195,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: #e6d1f7;
+  color: #E3DDF5;
 }
 
 .login-cristal__aviso {
@@ -237,13 +237,13 @@
 
 .login-cristal__texto {
   margin: 0 0 14px;
-  color: #e6d1f7;
+  color: #E3DDF5;
   font-size: 0.875rem;
 }
 
 .login-cristal__legal {
   margin: 20px 0 0;
-  color: #dbc4ed;
+  color: #D3CCF3;
   text-align: center;
   font-size: 0.75rem;
 }
