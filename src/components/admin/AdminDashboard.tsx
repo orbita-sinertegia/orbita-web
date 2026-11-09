@@ -111,7 +111,7 @@ const ADMIN_NAV_ITEMS = [
   { id: 'permisos', label: 'Usuarios y permisos', icon: KeyRound },
 ]
 
-const AVATAR_COLORS = ['#9333EA', '#0EA5E9', '#EC4899', '#12B886', '#F59E0B', '#8B5CF6', '#EF4444', '#0891B2', '#DB2777']
+const AVATAR_COLORS = ['#6A5ACD', '#0EA5E9', '#EC4899', '#12B886', '#F59E0B', '#8B5CF6', '#EF4444', '#0891B2', '#DB2777']
 
 function initialsOf(name: string): string {
   return name
