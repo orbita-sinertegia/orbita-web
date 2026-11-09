@@ -17,6 +17,7 @@ import StarRating from './StarRating'
 import UserProfile from '../shared/UserProfile'
 import { DEPT_LABELS, DEPT_COLORS, DEPT_ORDER } from '../../data/projectTemplates'
 import ClientRoadmapView from '../roadmap/ClientRoadmapView'
+import UpcomingMeetings from '../roadmap/UpcomingMeetings'
 import '../../styles/DashboardV2.css'
 
 interface DelayEvent {
@@ -1037,7 +1038,10 @@ export default function ClientPortal() {
 
       {/* ── Tab: Hoja de ruta (fases, hitos y lanzamiento, sin nombres internos) ── */}
       {activeTab === 'mihojaderuta' && selectedProject && (
-        <ClientRoadmapView project={selectedProject} tasks={projectTasks} delayEvents={projectDelayEvents} mode="cliente" />
+        <>
+          <UpcomingMeetings projectId={selectedProject.id} />
+          <ClientRoadmapView project={selectedProject} tasks={projectTasks} delayEvents={projectDelayEvents} mode="cliente" />
+        </>
       )}
       {activeTab === 'mihojaderuta' && !selectedProject && (
         <div className="text-center py-12 text-gray-400"><p className="text-sm">Todavía no tienes un proyecto asignado.</p></div>
