@@ -9,7 +9,7 @@ export interface ReportTask {
   date: string | null
 }
 
-const SLATE = '#410072'
+const SLATE = '#2D2B55'
 const SLATE_D = '#2C004F'
 const RED = '#D8232A'
 const YELLOW = '#F2C20A'
@@ -122,13 +122,13 @@ function buildReportHtml(opts: {
           <img src="${logoImg}" style="width:68px;height:68px;object-fit:contain;" />
         </div>
         <div>
-          <span style="display:inline-block;font-size:11px;letter-spacing:2.5px;font-weight:600;color:#D8B4FE;text-transform:uppercase;margin-bottom:10px;">Reporte de Tareas</span>
+          <span style="display:inline-block;font-size:11px;letter-spacing:2.5px;font-weight:600;color:#D3CCF3;text-transform:uppercase;margin-bottom:10px;">Reporte de Tareas</span>
           <h1 style="font-size:28px;font-weight:700;letter-spacing:-.3px;line-height:1.15;margin:0;">${esc(titulo)}</h1>
           <div style="font-size:13.5px;color:#C7CDD6;margin-top:6px;font-weight:300;">${esc(subtitulo)} · Generado el ${esc(fecha)}</div>
         </div>
       </div>
     </div>
-    <div style="height:5px;width:100%;background:linear-gradient(90deg,#A855F7 0 60%,#D8B4FE 60% 100%);"></div>
+    <div style="height:5px;width:100%;background:linear-gradient(90deg,#7D6FD5 0 60%,#D3CCF3 60% 100%);"></div>
 
     <div style="display:flex;gap:20px;padding:32px 44px 10px;">
       ${[
@@ -180,7 +180,7 @@ function buildReportHtml(opts: {
     </div>
 
     <div data-pdf-avoid="true" style="position:relative;height:24mm;padding:0 44px;display:flex;align-items:center;justify-content:space-between;background:${SLATE};color:#fff;font-size:10.5px;font-weight:300;">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#A855F7 0 60%,#D8B4FE 60% 100%);"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7D6FD5 0 60%,#D3CCF3 60% 100%);"></div>
       <div><b>${esc(pie)}</b></div>
       <div style="color:#C7CDD6;">Generado el ${esc(fecha)}</div>
     </div>

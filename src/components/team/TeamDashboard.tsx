@@ -719,7 +719,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
             {[
               { label: 'Total de tareas', value: stats.total, icon: ClipboardList, bg: '#EEE9FE', color: '#7C3AED' },
               { label: 'Pendientes', value: stats.pendiente, icon: Clock, bg: '#FEF0DE', color: '#EA580C' },
-              { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#F3E8FF', color: '#9333EA' },
+              { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#E9E5F9', color: '#6A5ACD' },
               { label: 'Completadas', value: stats.completada, icon: CheckCircle, bg: '#E4F7F0', color: '#0C8A66' },
               { label: 'Vencidas', value: stats.vencidas, icon: XCircle, bg: '#FCE4E8', color: '#E0304F' },
             ].map(({ label, value, icon: Icon, bg, color }) => (
@@ -739,11 +739,11 @@ export default function TeamDashboard({ embedded = false }: Props) {
               <p className="text-sm font-bold text-gray-800 mb-2 display">Resumen de progreso</p>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={weeklyProgress}>
-                  <defs><linearGradient id="adminProgressFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#9333EA" stopOpacity={0.35} /><stop offset="95%" stopColor="#9333EA" stopOpacity={0} /></linearGradient></defs>
+                  <defs><linearGradient id="adminProgressFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6A5ACD" stopOpacity={0.35} /><stop offset="95%" stopColor="#6A5ACD" stopOpacity={0} /></linearGradient></defs>
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
                   <Tooltip formatter={(value) => [value, 'Completadas']} />
-                  <Area type="monotone" dataKey="completadas" stroke="#9333EA" strokeWidth={2} fill="url(#adminProgressFill)" />
+                  <Area type="monotone" dataKey="completadas" stroke="#6A5ACD" strokeWidth={2} fill="url(#adminProgressFill)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -926,7 +926,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
                 {[
                   { label: 'Total de tareas', value: stats.total, icon: ClipboardList, bg: '#EEE9FE', color: '#7C3AED' },
                   { label: 'Pendientes', value: stats.pendiente, icon: Clock, bg: '#FEF0DE', color: '#EA580C' },
-                  { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#F3E8FF', color: '#9333EA' },
+                  { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#E9E5F9', color: '#6A5ACD' },
                   { label: 'Completadas', value: stats.completada, icon: CheckCircle, bg: '#E4F7F0', color: '#0C8A66' },
                   { label: 'Vencidas', value: stats.vencidas, icon: XCircle, bg: '#FCE4E8', color: '#E0304F' },
                 ].map(({ label, value, icon: Icon, bg, color }) => (
@@ -950,14 +950,14 @@ export default function TeamDashboard({ embedded = false }: Props) {
                     <AreaChart data={weeklyProgress}>
                       <defs>
                         <linearGradient id="progressFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#9333EA" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#9333EA" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#6A5ACD" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#6A5ACD" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="day" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
                       <Tooltip formatter={(v: any) => [v, 'Completadas']} />
-                      <Area type="monotone" dataKey="completadas" stroke="#9333EA" strokeWidth={2} fill="url(#progressFill)" />
+                      <Area type="monotone" dataKey="completadas" stroke="#6A5ACD" strokeWidth={2} fill="url(#progressFill)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

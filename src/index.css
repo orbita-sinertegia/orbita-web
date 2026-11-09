@@ -74,7 +74,7 @@ body {
 .ui-dark .text-blue-950,
 .ui-dark .text-blue-900,
 .ui-dark .text-blue-800,
-.ui-dark .text-blue-700 { color: #D8B4FE !important; }
+.ui-dark .text-blue-700 { color: #D3CCF3 !important; }
 .ui-dark .text-green-950,
 .ui-dark .text-green-900,
 .ui-dark .text-green-800,
@@ -82,7 +82,7 @@ body {
 .ui-dark .text-purple-950,
 .ui-dark .text-purple-900,
 .ui-dark .text-purple-800,
-.ui-dark .text-purple-700 { color: #d8b4fe !important; }
+.ui-dark .text-purple-700 { color: #D3CCF3 !important; }
 .ui-dark .text-indigo-950,
 .ui-dark .text-indigo-900,
 .ui-dark .text-indigo-800,
@@ -147,9 +147,9 @@ body {
 @media(max-width:640px){.team-load-view{padding-bottom:30px}.team-load-card{padding:16px}.team-load-summary{min-height:96px;padding:14px}.team-load-primary,.team-load-secondary{min-height:42px}}
 
 /* Tarea abierta desde una notificación */
-.notification-task-focus{position:relative;background:#FAF5FF!important;box-shadow:inset 4px 0 #9333EA, inset 0 0 0 1px #D8B4FE;animation:notification-task-pulse 1.4s ease-out 2}
-.notification-task-focus td:first-child::after{content:'Tarea asignada';display:inline-flex;margin-left:10px;border-radius:999px;background:#9333EA;padding:3px 8px;color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
-.ui-dark .notification-task-focus{background:#18345f!important;box-shadow:inset 4px 0 #C084FC, inset 0 0 0 1px #A855F7!important}
+.notification-task-focus{position:relative;background:#F4F2FC!important;box-shadow:inset 4px 0 #6A5ACD, inset 0 0 0 1px #D3CCF3;animation:notification-task-pulse 1.4s ease-out 2}
+.notification-task-focus td:first-child::after{content:'Tarea asignada';display:inline-flex;margin-left:10px;border-radius:999px;background:#6A5ACD;padding:3px 8px;color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
+.ui-dark .notification-task-focus{background:#18345f!important;box-shadow:inset 4px 0 #968ADF, inset 0 0 0 1px #7D6FD5!important}
 @keyframes notification-task-pulse{0%,100%{filter:none}50%{filter:brightness(1.12)}}
 
 /* Chat con clientes: tema oscuro consistente y navegación responsive. */
