@@ -22,6 +22,7 @@ import { bulkResultNotice, selectAllState, toggleSelectAll, toggleSelected, visi
 import { isClientAttributableDelay } from '../../lib/taskDelays'
 import { PROJECT_STATUS_HINTS, PROJECT_STATUS_LABELS, canChangeProjectStatus, canDeleteProjects, canDeleteTasks, taskDeletedNotice, FINALIZE_ARCHIVE_MARKER, finalizeChoiceText, finalizeCounts, finalizeDeleteWarning, finalizeResultNotice, reactivateNotice, type FinalizeCounts, type FinalizeMode, type ProjectStatus } from '../../lib/projectStatus'
 import ClientRoadmapView, { type DelayEventLike } from '../roadmap/ClientRoadmapView'
+import UpcomingMeetings from '../roadmap/UpcomingMeetings'
 
 interface Props {
   project: Project
@@ -580,7 +581,10 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
       </div>
 
       {tab === 'hoja_ruta' && (
-        <ClientRoadmapView project={project} tasks={tasks} delayEvents={delayEvents} mode="interno" />
+        <>
+          <UpcomingMeetings projectId={project.id} />
+          <ClientRoadmapView project={project} tasks={tasks} delayEvents={delayEvents} mode="interno" />
+        </>
       )}
 
       {tab === 'tareas' && (

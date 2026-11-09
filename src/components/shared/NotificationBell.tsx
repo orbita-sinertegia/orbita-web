@@ -109,6 +109,7 @@ export default function NotificationBell() {
     task_request: '📩',
     deadline: '⚠️',
     attendance: '🕘',
+    appointment: '📅',
   }
 
   return (
