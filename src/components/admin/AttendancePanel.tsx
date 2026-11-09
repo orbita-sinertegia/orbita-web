@@ -96,10 +96,15 @@ export default function AttendancePanel({ teamMembers }: Props) {
   }, [from, to])
 
   // La primera carga se difiere un tick para no llamar setState de forma síncrona dentro del efecto.
+  // En vivo: cada entrada o salida registrada refresca el panel al instante; el intervalo es respaldo.
   useEffect(() => {
     const first = setTimeout(fetchToday, 0)
     const id = setInterval(fetchToday, 60000)
-    return () => { clearTimeout(first); clearInterval(id) }
+    const channel = supabase
+      .channel('asistencia-hoy-en-vivo')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, () => { fetchToday() })
+      .subscribe()
+    return () => { clearTimeout(first); clearInterval(id); supabase.removeChannel(channel) }
   }, [fetchToday])
 
   useEffect(() => {
@@ -189,7 +194,7 @@ export default function AttendancePanel({ teamMembers }: Props) {
           {(['hoy', 'rango'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 text-sm font-medium transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-              {t === 'hoy' ? 'Hoy' : 'Semana / rango'}
+              {t === 'hoy' ? 'Hoy en vivo' : 'Semana / rango'}
             </button>
           ))}
         </div>
@@ -205,6 +210,8 @@ export default function AttendancePanel({ teamMembers }: Props) {
               </div>
             ))}
           </div>
+
+          <LiveBoard rows={todayRows} avatarByUserId={avatarByUserId} />
 
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
@@ -427,5 +434,55 @@ function CorrectionModal({ row, onClose, onSubmit }: {
         </div>
       </div>
     </div>
+  )
+}
+
+// Semáforo "Hoy en vivo": una tarjeta por persona, ordenada por urgencia.
+const LIVE_ORDER: Record<string, number> = { sin_registro: 0, retardo: 1, pendiente: 2, a_tiempo: 3, dia_extra: 4, descanso: 5 }
+const LIVE_DOT: Record<string, string> = {
+  a_tiempo: 'bg-green-500', retardo: 'bg-orange-500', sin_registro: 'bg-red-500',
+  pendiente: 'bg-gray-300', descanso: 'bg-slate-200', dia_extra: 'bg-blue-500',
+}
+
+function liveDetail(row: AsistenciaRow): string {
+  if (row.estado === 'a_tiempo') return `Entró ${fmtTime(row.entrada)}`
+  if (row.estado === 'retardo') return `Entró ${fmtTime(row.entrada)} · +${row.retardo_min ?? 0} min`
+  if (row.estado === 'sin_registro') return `Sin entrada · horario ${minToHHMM(row.inicio_programado_min)}`
+  if (row.estado === 'pendiente') return `Entra a las ${minToHHMM(row.inicio_programado_min)}`
+  if (row.estado === 'dia_extra') return `Día extra · ${fmtTime(row.entrada)}`
+  return 'Día libre'
+}
+
+function LiveBoard({ rows, avatarByUserId }: { rows: AsistenciaRow[]; avatarByUserId: Map<string, User> }) {
+  const sorted = [...rows].sort((a, b) => (LIVE_ORDER[a.estado] ?? 9) - (LIVE_ORDER[b.estado] ?? 9) || a.full_name.localeCompare(b.full_name))
+  if (sorted.length === 0) return null
+  return (
+    <section className="mb-6" aria-label="Asistencia de hoy en vivo">
+      <div className="mb-3 flex items-center gap-2 text-sm text-gray-500">
+        <span className="relative flex h-2.5 w-2.5" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+        </span>
+        En vivo: se actualiza cuando alguien registra su entrada o salida.
+      </div>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {sorted.map(row => {
+          const estado = ESTADO_LABELS[row.estado] || ESTADO_LABELS.pendiente
+          return (
+            <li key={row.user_id} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="relative shrink-0">
+                <UserAvatar name={row.full_name} avatarUrl={avatarByUserId.get(row.user_id)?.avatar_url} size={36} />
+                <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${LIVE_DOT[row.estado] || 'bg-gray-300'}`} aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-800">{row.full_name}</p>
+                <p className="truncate text-xs text-gray-500">{liveDetail(row)}</p>
+                <span className="sr-only">{estado.label}</span>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }

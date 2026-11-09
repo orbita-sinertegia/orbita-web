@@ -35,3 +35,27 @@ test('la web muestra las próximas reuniones en la hoja de ruta, sin poder edita
   assert.match(read('src/components/client/ClientPortal.tsx'), /<UpcomingMeetings projectId=\{selectedProject\.id\} \/>/)
   assert.match(read('src/components/shared/NotificationBell.tsx'), /appointment: '📅'/)
 })
+
+test('v2: tipos de cita editables solo por admins, cambio de horario y recordatorios', () => {
+  const sql = read('sql/2026-11-10_citas_v2_y_asistencia.sql')
+  assert.match(sql, /create table if not exists public\.appointment_kinds/)
+  assert.match(sql, /\('accesos', 'Accesos a cuentas', 'virtual', 4\)/)
+  assert.doesNotMatch(sql, /p_kind not in \('grabacion'/)
+  assert.equal((sql.match(/appointment_kinds where slug = p_kind and active/g) || []).length, 2)
+  assert.match(sql, /'Solo un administrador puede agregar tipos de cita'/)
+  assert.match(sql, /function public\.resolve_change_request/)
+  assert.match(sql, /cron\.schedule\('citas-recordatorios'/)
+  assert.ok(sql.indexOf('PRUEBA FALLIDA') < sql.lastIndexOf('commit;'))
+})
+
+test('asistencia: aviso verde o naranja al registrar la primera entrada y panel en vivo', () => {
+  const sql = read('sql/2026-11-10_citas_v2_y_asistencia.sql')
+  assert.match(sql, /create trigger aviso_entrada after insert on public\.work_sessions/)
+  assert.match(sql, /coalesce\(new\.late_minutes, 0\) <= 5 then\s+titulo := '🟢 Entrada a tiempo'/)
+  assert.match(sql, /'🟠 Entrada con retardo'/)
+  const panel = read('src/components/admin/AttendancePanel.tsx')
+  assert.match(panel, /'Hoy en vivo'/)
+  assert.match(panel, /table: 'work_sessions'/)
+  assert.match(panel, /removeChannel\(channel\)/)
+  assert.match(read('src/components/shared/NotificationBell.tsx'), /notification\.type === 'attendance'/)
+})
