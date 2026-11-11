@@ -43,6 +43,11 @@ const ESTADO_LABELS: Record<string, { label: string; className: string; icon: Re
   dia_extra: { label: 'Día extra', className: 'bg-blue-100 text-blue-700', icon: <Clock size={12} /> },
 }
 
+// Colores de los contadores de "Hoy en vivo".
+const SUMMARY_COLORS: Record<string, string> = {
+  a_tiempo: 'text-emerald-600', retardo: 'text-ambar-600', sin_registro: 'text-red-600', pendiente: 'text-blue-600', descanso: 'text-purple-600',
+}
+
 function minToHHMM(min: number | null | undefined): string {
   if (min === null || min === undefined) return '—'
   const h = Math.floor(min / 60), m = Math.round(min % 60)
@@ -189,11 +194,11 @@ export default function AttendancePanel({ teamMembers }: Props) {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h3 className="font-bold text-gray-800 text-lg">Asistencia</h3>
-        <div className="flex rounded-lg overflow-hidden border border-gray-200">
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Asistencia</h1>
+        <div className="flex gap-1 rounded-xl border border-gray-200/70 bg-white p-1 shadow-sm" role="tablist" aria-label="Vista de asistencia">
           {(['hoy', 'rango'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 text-sm font-medium transition ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${tab === t ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'text-gray-600 hover:bg-[#F4F3F8]'}`}>
               {t === 'hoy' ? 'Hoy en vivo' : 'Semana / rango'}
             </button>
           ))}
@@ -202,22 +207,22 @@ export default function AttendancePanel({ teamMembers }: Props) {
 
       {tab === 'hoy' && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
             {(['a_tiempo', 'retardo', 'sin_registro', 'pendiente', 'descanso'] as const).map(estado => (
-              <div key={estado} className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                <p className={`text-2xl font-bold ${ESTADO_LABELS[estado].className.split(' ')[1]}`}>{summary[estado]}</p>
-                <p className="text-xs text-gray-400 mt-1">{ESTADO_LABELS[estado].label}</p>
+              <div key={estado} className="rounded-2xl border border-gray-200/70 bg-white p-4 shadow-sm">
+                <p className={`text-2xl font-bold leading-tight ${SUMMARY_COLORS[estado]}`}>{summary[estado]}</p>
+                <p className="mt-1 text-xs text-gray-500">{ESTADO_LABELS[estado].label}</p>
               </div>
             ))}
           </div>
 
           <LiveBoard rows={todayRows} avatarByUserId={avatarByUserId} />
 
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr className="text-left text-gray-500">
+                <thead className="border-b border-gray-100">
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
                     <th className="px-4 py-3 font-semibold">Persona</th>
                     <th className="px-4 py-3 font-semibold">Horario</th>
                     <th className="px-4 py-3 font-semibold">Entrada</th>
@@ -469,7 +474,7 @@ function LiveBoard({ rows, avatarByUserId }: { rows: AsistenciaRow[]; avatarByUs
         {sorted.map(row => {
           const estado = ESTADO_LABELS[row.estado] || ESTADO_LABELS.pendiente
           return (
-            <li key={row.user_id} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+            <li key={row.user_id} className="flex items-center gap-3 rounded-2xl border border-gray-200/70 bg-white p-4 shadow-sm">
               <div className="relative shrink-0">
                 <UserAvatar name={row.full_name} avatarUrl={avatarByUserId.get(row.user_id)?.avatar_url} size={36} />
                 <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${LIVE_DOT[row.estado] || 'bg-gray-300'}`} aria-hidden />
