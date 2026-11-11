@@ -59,3 +59,14 @@ test('asistencia: aviso verde o naranja al registrar la primera entrada y panel 
   assert.match(panel, /removeChannel\(channel\)/)
   assert.match(read('src/components/shared/NotificationBell.tsx'), /notification\.type === 'attendance'/)
 })
+
+test('evidencia: bucket privado, solo admins suben, clientes ven solo lo visible para ellos', () => {
+  const sql = read('sql/2026-11-10_evidencia_citas.sql')
+  assert.match(sql, /'appointment-evidence', 'appointment-evidence', false/)
+  assert.match(sql, /create policy "evidencia_subir"[\s\S]*?public\.is_active_admin\(\)/)
+  assert.match(sql, /f\.visible_to_client or public\.app_is_staff\(\)/)
+  assert.match(sql, /PRUEBA FALLIDA: el bucket de evidencia quedó público/)
+  const privacy = read('public/privacidad.html')
+  assert.match(privacy, /Evidencia de citas/)
+  assert.match(privacy, /minutos de retardo/)
+})
