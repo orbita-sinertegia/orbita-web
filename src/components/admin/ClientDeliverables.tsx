@@ -124,8 +124,8 @@ export default function ClientDeliverables({ fixedClientId, onlyApproved = false
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Entregables</h2>
-        <div className="mt-1 flex items-center gap-2 text-xs text-gray-400"><span>Cliente</span><span>→</span><span>Proyecto</span><span>→</span><span className="font-semibold text-blue-600">Entregables</span></div>
+        <nav aria-label="Ruta" className="mb-1 flex items-center gap-2 text-xs text-gray-400"><span>Cliente</span><span aria-hidden>›</span><span>Proyecto</span><span aria-hidden>›</span><span className="font-semibold text-blue-600">Entregables</span></nav>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Entregables</h1>
       </div>
 
       {/* Selector de cliente — solo si no hay fixedClientId */}
@@ -135,7 +135,7 @@ export default function ClientDeliverables({ fixedClientId, onlyApproved = false
             <select
               value={selectedClientId}
               onChange={e => setSelectedClientId(e.target.value)}
-              className="w-full appearance-none border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              className="w-full appearance-none rounded-xl border-2 border-blue-200 bg-white px-4 py-2.5 pr-10 text-sm font-bold text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">Selecciona un cliente...</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -150,9 +150,10 @@ export default function ClientDeliverables({ fixedClientId, onlyApproved = false
 
       {/* Estado vacío */}
       {!selectedClientId && !fixedClientId && (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-          <Link2 size={40} className="mb-3 opacity-30" />
-          <p className="text-sm">Elige un cliente para ver sus entregables</p>
+        <div className="rounded-2xl border border-gray-200/70 bg-white shadow-sm flex min-h-[320px] flex-col items-center justify-center text-center">
+          <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-blue-100 text-blue-600"><Link2 size={22} /></span>
+          <b className="text-gray-900">Elige un cliente</b>
+          <span className="mt-1 text-sm text-gray-500">Verás sus entregables y los comentarios que deje.</span>
         </div>
       )}
 
@@ -162,27 +163,27 @@ export default function ClientDeliverables({ fixedClientId, onlyApproved = false
 
       {selectedClientId && !loading && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-            <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-gray-200/70 bg-white px-3 py-2.5 shadow-sm focus-within:border-blue-500">
               <Search size={14} className="text-gray-400" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar entregables..." className="w-full bg-transparent text-sm outline-none" />
             </div>
-            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 outline-none focus:ring-2 focus:ring-blue-500">
+            <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="rounded-xl border border-gray-200/70 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700 shadow-sm outline-none focus:border-blue-500">
               <option value="todos">Todos los proyectos</option>
               {projectOptions.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
             {([['todos', 'Todos'], ['pendientes', 'Pendientes'], ['revision', 'En revisión'], ['aprobados', 'Aprobados']] as const).map(([value, label]) => (
-              <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${value === 'todos' ? (statusFilter === value ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600') : value === 'pendientes' ? (statusFilter === value ? 'border-orange-300 bg-orange-100 text-orange-700' : 'border-orange-100 bg-orange-50 text-orange-600') : value === 'revision' ? (statusFilter === value ? 'border-purple-300 bg-purple-100 text-purple-700' : 'border-purple-100 bg-purple-50 text-purple-600') : (statusFilter === value ? 'border-green-300 bg-green-100 text-green-700' : 'border-green-100 bg-green-50 text-green-600')}`}>
-                {value !== 'todos' && <span className={`h-1.5 w-1.5 rounded-full ${value === 'pendientes' ? 'bg-orange-500' : value === 'revision' ? 'bg-purple-500' : 'bg-green-500'}`} />}{label}
+              <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${statusFilter === value ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'border-gray-200/70 bg-white text-gray-600 hover:border-blue-200'}`}>
+                {value !== 'todos' && <span className={`h-1.5 w-1.5 rounded-full ${statusFilter === value ? 'bg-white' : value === 'pendientes' ? 'bg-ambar' : value === 'revision' ? 'bg-blue-600' : 'bg-emerald-500'}`} />}{label}
               </button>
             ))}
           </div>
-          <div className="flex gap-5 items-start">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
 
           {/* Biblioteca de entregables: una fila por enlace o archivo */}
-          <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-sm">
             {deliverableRows.length === 0 ? (
-              <div className="py-16 text-center text-gray-400"><FileText size={30} className="mx-auto mb-2 opacity-30" /><p className="text-sm font-semibold">No hay entregables con estos filtros</p><p className="mt-1 text-xs">Los archivos y enlaces aparecerán cuando se adjunten a una tarea.</p></div>
+              <div className="flex min-h-[220px] flex-col items-center justify-center p-8 text-center"><span className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-blue-100 text-blue-600"><FileText size={22} /></span><b className="text-gray-900">No hay entregables con estos filtros</b><span className="mt-1 text-sm text-gray-500">Los archivos y enlaces aparecerán cuando se adjunten a una tarea.</span></div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[820px] text-sm">
@@ -209,13 +210,13 @@ export default function ClientDeliverables({ fixedClientId, onlyApproved = false
           </div>
 
           {/* Comentarios reales escritos por clientes en las tareas */}
-          <aside className="w-72 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-              <div className="flex items-center justify-between"><p className="text-sm font-bold text-gray-800">Seguimiento del cliente</p><span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">{clientComments.length}</span></div>
+          <aside className="w-full shrink-0 overflow-hidden rounded-2xl border border-gray-200/70 bg-white shadow-sm lg:w-80">
+            <div className="px-4 pt-4">
+              <div className="flex items-center justify-between"><p className="text-sm font-bold text-gray-900">Seguimiento del cliente</p><span className="rounded-full bg-ambar-100 px-2 py-0.5 text-xs font-bold text-ambar-700">{clientComments.length}</span></div>
               <p className="mt-1 text-xs text-gray-400">Comentarios en entregables</p>
             </div>
             <div className="max-h-[520px] space-y-3 overflow-y-auto p-3">
-              {clientComments.length === 0 ? <div className="py-10 text-center"><CheckSquare size={25} className="mx-auto mb-2 text-green-400" /><p className="text-sm font-semibold text-gray-600">Sin comentarios del cliente</p><p className="mt-1 text-xs text-gray-400">Cuando el cliente comente una tarea, aparecerá aquí.</p></div> : clientComments.map(comment => (
+              {clientComments.length === 0 ? <div className="flex flex-col items-center py-8 text-center"><span className="mb-2 grid h-11 w-11 place-items-center rounded-full bg-emerald-50 text-emerald-600"><CheckSquare size={20} /></span><p className="text-sm font-bold text-gray-900">Sin comentarios del cliente</p><p className="mt-1 text-xs text-gray-500">Cuando el cliente comente una tarea, aparecerá aquí.</p></div> : clientComments.map(comment => (
                 <button key={comment.id} type="button" onClick={() => window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: comment.task.id } }))} className="w-full rounded-xl border border-gray-200 p-3 text-left transition hover:border-blue-300 hover:shadow-sm">
                   <div className="flex items-start gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-orange-500" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-gray-800">{comment.task.title}</p><p className="mt-1 text-[11px] text-gray-400">{comment.user?.full_name || 'Cliente'} · {new Date(comment.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p><p className="mt-2 line-clamp-3 text-xs leading-relaxed text-gray-600">{comment.content}</p><span className="mt-3 inline-flex rounded-lg border border-blue-200 px-2.5 py-1 text-[11px] font-semibold text-blue-600">Ver en entregable</span></div></div>
                 </button>

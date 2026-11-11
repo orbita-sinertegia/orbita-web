@@ -115,3 +115,14 @@ test('Panel de Control: indicadores, resumen con 3 métricas, atención y proyec
   assert.match(css, /\.ui-dark \.v2app \.pc-mini/)
   assert.match(css, /prefers-reduced-motion:reduce\)\{\.v2app \.pc-kpi/)
 })
+
+test('Mis tareas, Hoja de ruta, Entregables y Embudos con el diseño nuevo', () => {
+  const team = read('src/components/team/TeamDashboard.tsx')
+  assert.doesNotMatch(team, /Â·/)
+  assert.match(team, /Total · \$\{/)
+  const roadmap = read('src/components/admin/ClientRoadmapsManager.tsx')
+  assert.match(roadmap, /const PHASE_GROUPS/)
+  assert.match(roadmap, /Aún no hay proyectos en la ruta/)
+  assert.match(read('src/components/admin/ClientDeliverables.tsx'), /Seguimiento del cliente/)
+  assert.match(read('src/components/admin/FunnelTemplatesManager.tsx'), /Reutilizable<\/span>/)
+})
