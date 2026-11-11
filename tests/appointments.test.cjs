@@ -115,3 +115,11 @@ test('Panel de Control: indicadores, resumen con 3 métricas, atención y proyec
   assert.match(css, /\.ui-dark \.v2app \.pc-mini/)
   assert.match(css, /prefers-reduced-motion:reduce\)\{\.v2app \.pc-kpi/)
 })
+
+test('Tareas del equipo: diseño en dos paneles con buscadores suaves y estado vacío', () => {
+  const ui = read('src/components/admin/TeamTasksManager.tsx')
+  assert.match(ui, /lg:grid-cols-\[300px_minmax\(0,1fr\)\] lg:items-start/)
+  assert.match(ui, /bg-\[#F4F3F8\]/)
+  assert.match(ui, /No hay tareas con estos filtros/)
+  assert.match(read('src/index.css'), /\.ui-dark \.bg-\\[\#F4F3F8\\]/)
+})
