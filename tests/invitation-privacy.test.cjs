@@ -81,3 +81,14 @@ test('una invitación nueva para un correo que ya tiene cuenta se acepta con su 
   }
   assert.match(read('supabase/functions/send-user-invitation/index.ts'), /info\.rejected\?\.length/)
 })
+
+test('departamentos editables por admins e invitaciones de equipo pendientes visibles', () => {
+  const sql = read('sql/2026-11-11_departamentos.sql')
+  assert.match(sql, /create table if not exists public\.team_departments/)
+  assert.match(sql, /drop constraint if exists users_department_check/)
+  assert.match(sql, /using \(public\.is_active_admin\(\)\) with check \(public\.is_active_admin\(\)\)/)
+  const ui = read('src/components/admin/RolePermissionsManager.tsx')
+  assert.match(ui, /from\('team_invitations'\)\.select\('id, email, full_name, role, department'\)\.eq\('used', false\)/)
+  assert.match(ui, /Eliminar invitación/)
+  assert.match(ui, /Reenviar correo/)
+})
