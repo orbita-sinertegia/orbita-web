@@ -135,3 +135,14 @@ test('Tareas del equipo: diseño en dos paneles con buscadores suaves y estado v
   assert.match(ui, /No hay tareas con estos filtros/)
   assert.ok(read('src/index.css').includes(String.raw`.ui-dark .bg-\[\#F4F3F8\]`))
 })
+
+test('Mis tareas, Hoja de ruta, Entregables y Embudos con el diseño nuevo', () => {
+  const team = read('src/components/team/TeamDashboard.tsx')
+  assert.doesNotMatch(team, /Â·/)
+  assert.match(team, /Total · \$\{/)
+  const roadmap = read('src/components/admin/ClientRoadmapsManager.tsx')
+  assert.match(roadmap, /const PHASE_GROUPS/)
+  assert.match(roadmap, /Aún no hay proyectos en la ruta/)
+  assert.match(read('src/components/admin/ClientDeliverables.tsx'), /Seguimiento del cliente/)
+  assert.match(read('src/components/admin/FunnelTemplatesManager.tsx'), /Reutilizable<\/span>/)
+})

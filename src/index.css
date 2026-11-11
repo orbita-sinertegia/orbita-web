@@ -180,6 +180,7 @@ body {
   .client-chat-header>span{margin-left:44px;max-width:calc(100% - 44px)}
   .client-chat-messages{padding:12px}
 }
+.ui-dark .bg-\[\#EEEDF4\] { background-color: rgba(255,255,255,.10) !important; }
 .ui-dark .bg-blue-100\/70 { background-color: rgba(106,90,205,.18) !important; }
 
 /* Fondos suaves del diseño nuevo (Tareas del equipo) en tema oscuro. */

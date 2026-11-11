@@ -665,7 +665,7 @@ export default function TeamDashboard({ embedded = false }: Props) {
         <button
           key={f}
           onClick={() => setFilter(f)}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${filter === f ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${filter === f ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'border-gray-200/70 bg-[#F4F3F8] text-gray-600 hover:border-blue-200'}`}
         >
           {f === 'todas' ? 'Todas' : f === 'en_progreso' ? 'En progreso' : f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
@@ -701,12 +701,12 @@ export default function TeamDashboard({ embedded = false }: Props) {
       <div className="p-6 lg:p-8 max-w-[1500px] mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Mis tareas</h2>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Mis tareas</h1>
             <p className="text-sm text-gray-500">Consulta y trabaja en las actividades que tienes asignadas.</p>
           </div>
           <button
             onClick={() => setShowCreateTask(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700"
           >
             <Plus size={16} /> Nueva tarea
           </button>
@@ -715,27 +715,22 @@ export default function TeamDashboard({ embedded = false }: Props) {
         {reviewBanners}
 
         <>
-          <div className="v2-stats-row">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
             {[
-              { label: 'Total de tareas', value: stats.total, icon: ClipboardList, bg: '#EEE9FE', color: '#7C3AED' },
-              { label: 'Pendientes', value: stats.pendiente, icon: Clock, bg: '#FEF0DE', color: '#EA580C' },
-              { label: 'En progreso', value: stats.en_progreso, icon: Loader2, bg: '#E9E5F9', color: '#6A5ACD' },
-              { label: 'Completadas', value: stats.completada, icon: CheckCircle, bg: '#E4F7F0', color: '#0C8A66' },
-              { label: 'Vencidas', value: stats.vencidas, icon: XCircle, bg: '#FCE4E8', color: '#E0304F' },
-            ].map(({ label, value, icon: Icon, bg, color }) => (
-              <div key={label} className="v2-stat-card">
-                <div className="v2-stat-icon" style={{ background: bg }}>
-                  <Icon size={17} color={color} />
-                </div>
-                <div className="min-w-0">
-                  <p className="v2-stat-num">{value}</p>
-                  <p className="v2-stat-label">{label} Â· {stats.total > 0 ? Math.round((value / stats.total) * 100) : 0}%</p>
-                </div>
+              { label: `Total · ${stats.total > 0 ? Math.round((stats.completada / stats.total) * 100) : 0}%`, value: stats.total, color: 'text-gray-950' },
+              { label: 'Pendientes', value: stats.pendiente, color: 'text-ambar-600' },
+              { label: 'En progreso', value: stats.en_progreso, color: 'text-blue-600' },
+              { label: 'Completadas', value: stats.completada, color: 'text-emerald-600' },
+              { label: 'Vencidas', value: stats.vencidas, color: 'text-red-600' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-2xl border border-gray-200/70 bg-white shadow-sm p-4">
+                <p className={`text-2xl font-bold leading-tight ${color}`}>{value}</p>
+                <p className="mt-1 text-xs text-gray-500">{label}</p>
               </div>
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6 items-stretch">
-            <div className="lg:col-span-2 v2-surface flex flex-col min-h-[280px]">
+            <div className="lg:col-span-2 v2-surface !rounded-2xl flex flex-col min-h-[260px]">
               <p className="text-sm font-bold text-gray-800 mb-2 display">Resumen de progreso</p>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={weeklyProgress}>
@@ -747,20 +742,22 @@ export default function TeamDashboard({ embedded = false }: Props) {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="v2-surface flex flex-col min-h-[280px]">
+            <div className="v2-surface !rounded-2xl flex flex-col min-h-[260px]">
               <p className="text-sm font-bold text-gray-800 mb-2 display">Tareas por prioridad</p>
               {priorityData.length === 0 ? <p className="text-xs text-gray-400 flex-1 flex items-center justify-center">{'Sin tareas a\u00fan'}</p> : <>
                 <ResponsiveContainer width="100%" height={130}><PieChart><Pie data={priorityData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={2}>{priorityData.map(item => <Cell key={item.name} fill={item.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
                 <div className="flex flex-wrap gap-2.5 justify-center mt-2">{priorityData.map(item => <span key={item.name} className="flex items-center gap-1 text-[11px] text-gray-500"><span className="w-2 h-2 rounded-full" style={{ background: item.color }} /> {item.name} ({item.value})</span>)}</div>
               </>}
             </div>
-            <div className="v2-surface flex flex-col min-h-[280px]">
+            <div className="v2-surface !rounded-2xl flex flex-col min-h-[260px]">
               <p className="text-sm font-bold text-gray-800 mb-3 display">{'Pr\u00f3ximas entregas'}</p>
               {upcoming.length === 0 ? <p className="text-xs text-gray-400 flex-1 flex items-center justify-center text-center">{'No tienes entregas pr\u00f3ximas'}</p> : <div className="space-y-2.5 flex-1">{upcoming.map(task => <button type="button" key={task.id} className="flex w-full items-center gap-2.5 text-left" onClick={() => setSelectedTask(task)}><div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0"><CalendarDays size={14} className="text-purple-500" /></div><div className="min-w-0"><p className="text-xs text-gray-400">{new Date(`${task.commitment_date}T00:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p><p className="text-sm text-gray-700 truncate">{task.title}</p></div></button>)}</div>}
             </div>
           </div>
-          {filterPills}
-          {taskTable}
+          <section className="rounded-2xl border border-gray-200/70 bg-white shadow-sm p-4 sm:p-5">
+            {filterPills}
+            {taskTable}
+          </section>
         </>
 
         {taskModals}

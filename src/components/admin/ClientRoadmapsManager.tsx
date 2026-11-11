@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ChevronDown, Filter, Map as MapIcon, Search } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Filter, Route, Search } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { isDateKeyOverdue } from '../../lib/dates'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Project, Task, User } from '../../types'
 import {
   type HealthStatus, compareByRisk, currentDisplayPhase, DISPLAY_PHASE_LABELS, DISPLAY_PHASE_ORDER,
-  projectHealth,
+  projectHealth, effectivePhase, isTaskDone, type Phase,
 } from '../../lib/roadmapPhases'
 import ClientRoadmapView, { type DelayEventLike } from '../roadmap/ClientRoadmapView'
 
@@ -25,6 +25,14 @@ const HEALTH_LABELS: Record<HealthStatus, { label: string; className: string }> 
 function storageKey(userId: string) {
   return `client-roadmap-last-${userId}`
 }
+
+// Las 7 fases de la hoja de ruta, agrupadas en las 4 etapas que se muestran arriba.
+const PHASE_GROUPS: { label: string; description: string; phases: Phase[]; color: string; bar: string }[] = [
+  { label: 'Descubrimiento', description: 'Brief, objetivos y alcance con el cliente.', phases: ['entrada', 'estrategia', 'guiones'], color: 'text-blue-600', bar: 'bg-blue-600' },
+  { label: 'Producción', description: 'Grabación, diseño y automatizaciones.', phases: ['produccion_video', 'produccion_paginas'], color: 'text-purple-600', bar: 'bg-purple-500' },
+  { label: 'Revisión', description: 'Aprobación del cliente y ajustes.', phases: ['revision'], color: 'text-ambar-600', bar: 'bg-ambar' },
+  { label: 'Entrega', description: 'Publicación y cierre del proyecto.', phases: ['lanzamiento', 'optimizacion'], color: 'text-emerald-600', bar: 'bg-emerald-500' },
+]
 
 export default function ClientRoadmapsManager({ restricted = false, initialClientId }: Props) {
   const { user } = useAuth()
@@ -200,63 +208,95 @@ export default function ClientRoadmapsManager({ restricted = false, initialClien
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
-      <div>
-        <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900"><MapIcon size={20} className="text-blue-700" /> Hoja de ruta</h2>
-        <p className="text-sm text-gray-500">Busca un cliente o revisa el resumen de todos los proyectos activos.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Hoja de ruta</h1>
+          <p className="mt-1 text-sm text-gray-500">Las fases de cada proyecto, de principio a entrega.</p>
+        </div>
+        <label className="flex items-center gap-2 rounded-xl border border-gray-200/70 bg-white px-3 py-2 text-sm shadow-sm">
+          <span className="font-semibold text-gray-500">Proyecto:</span>
+          <select value="" onChange={event => { const project = activeProjects.find(item => item.id === event.target.value); if (project) selectProject(project) }}
+            aria-label="Abrir la hoja de ruta de un proyecto" className="bg-transparent font-bold text-gray-900 outline-none">
+            <option value="">Todos</option>
+            {activeProjects.map(project => <option key={project.id} value={project.id}>{project.client?.name ? `${project.client.name} · ` : ''}{project.name}</option>)}
+          </select>
+        </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-        <div className="relative min-w-[240px] flex-1">
+      {/* Las 4 etapas: suman las tareas de todos los proyectos activos. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {PHASE_GROUPS.map((group, index) => {
+          const groupTasks = tasks.filter(task => activeProjects.some(project => project.id === task.project_id) && group.phases.includes(effectivePhase(task)))
+          const doneCount = groupTasks.filter(isTaskDone).length
+          const pct = groupTasks.length ? Math.round((doneCount / groupTasks.length) * 100) : 0
+          return (
+            <div key={group.label} className="rounded-2xl border border-gray-200/70 bg-white shadow-sm p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wide ${group.color}`}>Fase {index + 1}</span>
+                <span className="rounded-md bg-[#F1F0F6] px-2 py-0.5 text-[11px] font-semibold text-gray-500">{groupTasks.length} {groupTasks.length === 1 ? 'tarea' : 'tareas'}</span>
+              </div>
+              <p className="font-bold text-gray-900">{group.label}</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#EEEDF4]" role="img" aria-label={`${group.label}: ${pct}% completado`}>
+                <span className={`block h-full rounded-full ${group.bar}`} style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-3 text-xs text-gray-500">{group.description}</p>
+            </div>
+          )
+        })}
+      </div>
+
+      <section className="rounded-2xl border border-gray-200/70 bg-white shadow-sm min-h-[420px] p-4 sm:p-5">
+      {cards.length > 0 && (
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar cliente o empresa..."
-            className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500" />
+            className="w-full rounded-xl border border-transparent bg-[#F4F3F8] py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white" />
         </div>
-        {search.trim() && filteredClients.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {filteredClients.slice(0, 6).map(client => (
-              <button key={client.id} type="button" onClick={() => selectClient(client.id)}
-                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
-                {client.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+        {search.trim() && filteredClients.length > 0 && filteredClients.slice(0, 6).map(client => (
+          <button key={client.id} type="button" onClick={() => selectClient(client.id)}
+            className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+            {client.name}
+          </button>
+        ))}
         <span className="flex items-center gap-1.5 text-xs font-bold text-gray-500"><Filter size={13} /> Filtros</span>
-        <select value={phaseFilter} onChange={event => setPhaseFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+        <select value={phaseFilter} onChange={event => setPhaseFilter(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600">
           <option value="todas">Todas las fases</option>
           {DISPLAY_PHASE_ORDER.map(phase => <option key={phase} value={phase}>{DISPLAY_PHASE_LABELS[phase]}</option>)}
         </select>
-        <select value={healthFilter} onChange={event => setHealthFilter(event.target.value as typeof healthFilter)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+        <select value={healthFilter} onChange={event => setHealthFilter(event.target.value as typeof healthFilter)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600">
           <option value="todos">Cualquier semáforo</option>
           <option value="atrasado">🔴 Atrasado</option>
           <option value="en_riesgo">🟡 En riesgo</option>
           <option value="en_tiempo">🟢 En tiempo</option>
         </select>
         {teamMembers.length > 0 && (
-          <select value={responsibleFilter} onChange={event => setResponsibleFilter(event.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+          <select value={responsibleFilter} onChange={event => setResponsibleFilter(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600">
             <option value="todos">Cualquier responsable</option>
             {teamMembers.map(member => <option key={member.id} value={member.id}>{member.full_name}</option>)}
           </select>
         )}
-        <select value={delayFilter} onChange={event => setDelayFilter(event.target.value as typeof delayFilter)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+        <select value={delayFilter} onChange={event => setDelayFilter(event.target.value as typeof delayFilter)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600">
           <option value="todos">Retraso: cualquiera</option>
           <option value="cliente">Retraso: cliente</option>
           <option value="agencia">Retraso: agencia</option>
         </select>
       </div>
+      )}
 
       {filteredCards.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white py-16 text-center text-sm text-gray-400">No hay proyectos activos que coincidan con estos filtros.</div>
+        <div className="flex min-h-[380px] flex-col items-center justify-center text-center">
+          <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-blue-100 text-blue-600"><Route size={22} /></span>
+          <b className="text-gray-900">{cards.length === 0 ? 'Aún no hay proyectos en la ruta' : 'Ningún proyecto coincide con estos filtros'}</b>
+          <span className="mt-1 text-sm text-gray-500">{cards.length === 0 ? 'Crea un proyecto y sus fases aparecerán aquí como una línea de tiempo.' : 'Prueba otra fase, semáforo o búsqueda.'}</span>
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredCards.map(card => {
             const health = HEALTH_LABELS[card.health.status]
             return (
               <button key={card.project.id} type="button" onClick={() => selectProject(card.project)}
-                className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md">
+                className="rounded-2xl border border-gray-200/80 bg-white p-4 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold uppercase tracking-wide text-blue-600">{card.project.client?.name}</p>
@@ -284,6 +324,7 @@ export default function ClientRoadmapsManager({ restricted = false, initialClien
           })}
         </div>
       )}
+      </section>
     </div>
   )
 }
