@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { createOrSignIn } from '../../lib/inviteAccount'
 import logoImg from '../../assets/logo.png'
 
 interface Props {
@@ -82,13 +83,9 @@ export default function TeamRegistrationPage({ inviteToken }: Props) {
     setSaving(true)
     try {
 
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email: invite!.email,
-        password: form.password,
-      })
-
-      if (authErr || !authData.user) {
-        setError(authErr?.message === 'User already registered' ? 'Este correo ya tiene una cuenta registrada.' : 'No se pudo crear la cuenta. Intenta de nuevo.')
+      const cuenta = await createOrSignIn(invite!.email, form.password)
+      if (!cuenta.ok) {
+        setError(cuenta.message)
         setSaving(false)
         return
       }
@@ -98,7 +95,7 @@ export default function TeamRegistrationPage({ inviteToken }: Props) {
         p_invitation_id: inviteToken,
         p_full_name: form.full_name.trim(),
       })
-      if (acceptError) throw new Error('La cuenta se creó, pero no se pudo completar el registro. Contacta al administrador.')
+      if (acceptError) throw new Error('No se pudo completar el registro. Contacta al administrador.')
 
       setDone(true)
     } catch (error) {
