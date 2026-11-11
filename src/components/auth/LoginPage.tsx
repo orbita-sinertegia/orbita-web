@@ -205,6 +205,8 @@ export default function LoginPage({ unauthorizedEmail, deactivatedEmail, license
           <a href="/privacidad.html">Política de privacidad</a>
           {' · '}
           <a href="/condiciones.html">Condiciones del servicio</a>
+          {' · '}
+          <a href="/app.html">App para Android</a>
         </p>
       </section>
     </div>
