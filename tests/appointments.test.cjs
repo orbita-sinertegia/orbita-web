@@ -104,3 +104,14 @@ test('embudos: se eliminan con su función, se administran desde Nuevo proyecto 
   assert.doesNotMatch(read('src/components/admin/ProjectDetail.tsx'), /FUNNEL_TYPES|PROJECT_STAGES/)
   assert.match(read('src/components/admin/AdminDashboard.tsx'), /view === 'clientes' \|\| view === 'create_project'/)
 })
+
+test('Panel de Control: indicadores, resumen con 3 métricas, atención y proyectos en panel', () => {
+  const dash = read('src/components/admin/AdminDashboard.tsx')
+  for (const text of ['Proyectos activos', 'Tareas abiertas', 'Terminadas en 7 días', 'Personas activas', 'Tareas vencidas', 'Entrega a tiempo', 'En retrabajo', 'Crear el primer proyecto']) {
+    assert.match(dash, new RegExp(text))
+  }
+  assert.match(dash, /className="pc-kpis"/)
+  const css = read('src/styles/DashboardV2.css')
+  assert.match(css, /\.ui-dark \.v2app \.pc-mini/)
+  assert.match(css, /prefers-reduced-motion:reduce\)\{\.v2app \.pc-kpi/)
+})

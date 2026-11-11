@@ -16,10 +16,8 @@ import {
   Search,
   CheckCircle2,
   ArrowRight,
-  Activity,
   Clock3,
   RotateCcw,
-  Sparkles,
   UserRound,
   LogOut,
   PanelLeftClose,
@@ -29,6 +27,10 @@ import {
   History,
   Route,
   UserCheck2,
+  Folder,
+  FolderPlus,
+  AlignLeft,
+  Check,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { isDateKeyOverdue } from '../../lib/dates'
@@ -344,6 +346,13 @@ export default function AdminDashboard() {
   const healthyProjects = activeProjects.filter((p) => !atRiskProjectIds.has(p.id))
   const healthPct = activeProjects.length ? Math.round((healthyProjects.length / activeProjects.length) * 100) : 100
   const attentionTotal = pendingTraffickerReview.length + overdueTasks.length + clientChangesRequested.length + clientDelayTasks.length
+  // Entrega a tiempo: tareas terminadas con fecha compromiso que se completaron a más tardar ese día.
+  const deliveredWithDate = metricTasks.filter((t) => t.status === 'completada' && t.commitment_date && t.completion_date)
+  const onTimePct = deliveredWithDate.length
+    ? Math.round((deliveredWithDate.filter((t) => String(t.completion_date) <= String(t.commitment_date)).length / deliveredWithDate.length) * 100)
+    : 100
+  // En retrabajo: tareas abiertas que regresaron con cambios (del cliente o de revisión interna).
+  const reworkTasks = operationalTasks.filter((t) => t.status !== 'completada' && (t.client_approval === 'cambios_solicitados' || t.review_status === 'cambios_solicitados'))
 
   const filteredProjects = (statusFilter === 'todos' ? projects : projects.filter((p) => p.status === statusFilter)).sort((a, b) => {
     const urgency = (projectId: string) => {
@@ -458,148 +467,113 @@ export default function AdminDashboard() {
             {/* ═══ Vista: Proyectos (overview) ═══ */}
             {view === 'overview' && (
               <>
-                <div className="v2-page-head">
+                {/* Encabezado */}
+                <div className="pc-head">
                   <div>
-                    <h1 className="v2-page-title display">Panel de Control</h1>
-                    <div className="v2-page-meta">
-                      <span className="v2-stat-inline">
-                        <b className="mono">{projects.filter((p) => p.status === 'activo').length}</b> proyectos activos
-                      </span>
-                      <span className="v2-sep" />
-                      <span className="v2-stat-inline">
-                        <b className="mono">{teamMembers.length}</b> personas en el equipo
-                      </span>
+                    <h1 className="pc-title display">Panel de Control</h1>
+                    <div className="pc-chips">
+                      <span className="pc-chip"><i className="violet" /> {activeProjects.length} {activeProjects.length === 1 ? 'proyecto activo' : 'proyectos activos'}</span>
+                      <span className="pc-chip"><i className="lila" /> {teamMembers.length} {teamMembers.length === 1 ? 'persona en el equipo' : 'personas en el equipo'}</span>
                     </div>
                   </div>
-                  <div className="v2-actions">
-                    <button className="v2-btn v2-btn-ghost" onClick={() => { setCreateProjectReturnView('overview'); setView('create_project') }}>
-                      <Plus /> Nuevo proyecto
+                  <div className="pc-actions">
+                    <button type="button" className="pc-btn pc-btn-light" onClick={() => { setCreateProjectReturnView('overview'); setView('create_project') }}>
+                      <FolderPlus /> Nuevo proyecto
                     </button>
-                    <button className="v2-btn v2-btn-primary" onClick={() => setView('create')}>
+                    <button type="button" className="pc-btn pc-btn-primary" onClick={() => setView('create')}>
                       <Plus /> Nueva tarea
                     </button>
                   </div>
                 </div>
 
-                <div className="v2-exec-grid">
-                  <section className="v2-exec-summary">
-                    <div className="v2-exec-summary-head">
+                {/* Indicadores */}
+                <div className="pc-kpis">
+                  {[
+                    { icon: <Folder />, tone: 'violet', tag: 'Activos', value: activeProjects.length, label: 'Proyectos activos', go: () => setStatusFilter('activo') },
+                    { icon: <AlignLeft />, tone: 'amber', tag: 'Abiertas', value: openTasks.length, label: 'Tareas abiertas', go: () => setView('mytasks') },
+                    { icon: <Check />, tone: 'green', tag: '7 días', value: completedThisWeek.length, label: 'Terminadas en 7 días', go: () => setView('performance') },
+                    { icon: <Users />, tone: 'lila', tag: 'Hoy', value: teamMembers.length, label: 'Personas activas', go: () => setView('team') },
+                  ].map(kpi => (
+                    <button key={kpi.label} type="button" className="pc-kpi" onClick={kpi.go}>
+                      <span className="pc-kpi-top">
+                        <span className={`pc-kpi-icon ${kpi.tone}`}>{kpi.icon}</span>
+                        <span className="pc-tag">{kpi.tag}</span>
+                      </span>
+                      <b className="mono">{kpi.value}</b>
+                      <small>{kpi.label}</small>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pc-row">
+                  {/* Resumen ejecutivo */}
+                  <section className="pc-panel">
+                    <div className="pc-panel-head">
                       <div>
-                        <span className="v2-eyebrow">
-                          <Sparkles size={13} /> Resumen ejecutivo
-                        </span>
+                        <span className="pc-eyebrow amber">Resumen ejecutivo</span>
                         <h2>Así marcha la operación</h2>
                       </div>
-                      <span className={`v2-health-pill ${healthPct >= 80 ? 'good' : healthPct >= 60 ? 'medium' : 'risk'}`}>
-                        <span /> {healthPct}% saludable
-                      </span>
+                      <span className={`pc-pill ${healthPct >= 80 ? 'good' : healthPct >= 60 ? 'medium' : 'risk'}`}><i /> {healthPct}% saludable</span>
                     </div>
-                    <div className="v2-exec-metrics">
-                      <button type="button" onClick={() => setStatusFilter('activo')}>
-                        <span className="v2-metric-icon blue">
-                          <FolderKanban />
-                        </span>
-                        <span>
-                          <b className="mono">{activeProjects.length}</b>
-                          <small>Proyectos activos</small>
-                        </span>
-                      </button>
-                      <button type="button" onClick={() => setView('mytasks')}>
-                        <span className="v2-metric-icon violet">
-                          <Activity />
-                        </span>
-                        <span>
-                          <b className="mono">{openTasks.length}</b>
-                          <small>Tareas abiertas</small>
-                        </span>
-                      </button>
-                      <button type="button" onClick={() => setView('performance')}>
-                        <span className="v2-metric-icon green">
-                          <CheckCircle2 />
-                        </span>
-                        <span>
-                          <b className="mono">{completedThisWeek.length}</b>
-                          <small>Terminadas en 7 días</small>
-                        </span>
-                      </button>
-                      <button type="button" onClick={() => setView('team')}>
-                        <span className="v2-metric-icon amber">
-                          <Users />
-                        </span>
-                        <span>
-                          <b className="mono">{teamMembers.length}</b>
-                          <small>Personas activas</small>
-                        </span>
-                      </button>
+                    <div className="pc-bar" role="img" aria-label={`Salud de la operación: ${healthPct}%`}>
+                      <span style={{ width: `${healthPct}%` }} />
+                    </div>
+                    <div className="pc-bar-labels">
+                      <span>{atRiskProjectIds.size === 0 ? 'Carga equilibrada' : `${atRiskProjectIds.size} ${atRiskProjectIds.size === 1 ? 'proyecto en riesgo' : 'proyectos en riesgo'}`}</span>
+                      <span>{attentionTotal === 0 ? 'Sin bloqueos' : `${attentionTotal} por atender`}</span>
+                    </div>
+                    <div className="pc-mini-grid">
+                      <div className="pc-mini"><b className="mono">{overdueTasks.length}</b><small>Tareas vencidas</small></div>
+                      <div className="pc-mini"><b className="mono">{onTimePct}%</b><small>Entrega a tiempo</small></div>
+                      <div className="pc-mini"><b className="mono">{reworkTasks.length}</b><small>En retrabajo</small></div>
                     </div>
                   </section>
 
-                  <section className="v2-attention">
-                    <div className="v2-attention-head">
+                  {/* Requiere atención */}
+                  <section className="pc-panel">
+                    <div className="pc-panel-head">
                       <div>
-                        <span className="v2-eyebrow">Prioridad de hoy</span>
+                        <span className="pc-eyebrow">Prioridad de hoy</span>
                         <h2>Requiere atención</h2>
                       </div>
-                      <span className={`v2-attention-total ${attentionTotal === 0 ? 'clear' : ''}`}>{attentionTotal === 0 ? 'Todo al día' : attentionTotal}</span>
+                      <span className={`pc-pill ${attentionTotal === 0 ? 'good' : 'risk'}`}>{attentionTotal === 0 ? 'Todo al día' : `${attentionTotal} pendientes`}</span>
                     </div>
                     {attentionTotal === 0 ? (
-                      <div className="v2-attention-empty">
-                        <CheckCircle2 />
-                        <div>
-                          <b>Todo al día</b>
-                          <span>No tienes pendientes que atender.</span>
-                        </div>
+                      <div className="pc-empty-soft">
+                        <span className="pc-check"><Check /></span>
+                        <b>Todo al día</b>
+                        <small>No tienes pendientes que atender. Las alertas de entregas y retrasos aparecerán aquí.</small>
                       </div>
                     ) : (
-                      <div className="v2-attention-list">
+                      <div className="v2-attention-list pc-attention-list">
                         {pendingTraffickerReview.length > 0 && (
                           <button type="button" className="review" onClick={() => setReviewFocusTask(pendingTraffickerReview[0])}>
-                            <span className="v2-attention-icon">
-                              <Search />
-                            </span>
-                            <span>
-                              <b>Por autorizar</b>
-                              <small>{pendingTraffickerReview[0].title}</small>
-                            </span>
+                            <span className="v2-attention-icon"><Search /></span>
+                            <span><b>Por autorizar</b><small>{pendingTraffickerReview[0].title}</small></span>
                             <strong className="mono">{pendingTraffickerReview.length}</strong>
                             <ArrowRight />
                           </button>
                         )}
                         {overdueTasks.length > 0 && (
                           <button type="button" className="overdue" onClick={() => setReviewFocusTask(overdueTasks[0])}>
-                            <span className="v2-attention-icon">
-                              <Clock3 />
-                            </span>
-                            <span>
-                              <b>Fuera de fecha</b>
-                              <small>{overdueTasks[0].title}</small>
-                            </span>
+                            <span className="v2-attention-icon"><Clock3 /></span>
+                            <span><b>Fuera de fecha</b><small>{overdueTasks[0].title}</small></span>
                             <strong className="mono">{overdueTasks.length}</strong>
                             <ArrowRight />
                           </button>
                         )}
                         {clientChangesRequested.length > 0 && (
                           <button type="button" className="changes" onClick={() => setReviewFocusTask(clientChangesRequested[0])}>
-                            <span className="v2-attention-icon">
-                              <RotateCcw />
-                            </span>
-                            <span>
-                              <b>Cambios de clientes</b>
-                              <small>{clientChangesRequested[0].title}</small>
-                            </span>
+                            <span className="v2-attention-icon"><RotateCcw /></span>
+                            <span><b>Cambios de clientes</b><small>{clientChangesRequested[0].title}</small></span>
                             <strong className="mono">{clientChangesRequested.length}</strong>
                             <ArrowRight />
                           </button>
                         )}
                         {clientDelayTasks.length > 0 && (
                           <button type="button" className="overdue" onClick={() => setReviewFocusTask(clientDelayTasks[0])}>
-                            <span className="v2-attention-icon">
-                              <History />
-                            </span>
-                            <span>
-                              <b>Retrasos del cliente</b>
-                              <small>{clientDelayTasks[0].title}</small>
-                            </span>
+                            <span className="v2-attention-icon"><History /></span>
+                            <span><b>Retrasos del cliente</b><small>{clientDelayTasks[0].title}</small></span>
                             <strong className="mono">{clientDelayTasks.length}</strong>
                             <ArrowRight />
                           </button>
@@ -609,98 +583,99 @@ export default function AdminDashboard() {
                   </section>
                 </div>
 
-                {/* Toolbar: tabs de estado */}
-                <div className="v2-toolbar">
-                  <div className="v2-tabs">
+                {/* Proyectos */}
+                <section className="pc-panel pc-projects">
+                  <div className="pc-tabs" role="tablist" aria-label="Filtrar proyectos">
                     {STATUS_FILTER_LABELS.map(({ value, label }) => (
-                      <button key={value} className={`v2-tab ${statusFilter === value ? 'active' : ''}`} onClick={() => setStatusFilter(value)}>
+                      <button key={value} type="button" role="tab" aria-selected={statusFilter === value}
+                        className={`pc-tab ${statusFilter === value ? 'active' : ''}`} onClick={() => setStatusFilter(value)}>
                         {label}
-                        <span className="v2-count">{value === 'todos' ? projects.length : projects.filter((p) => p.status === value).length}</span>
+                        <span>{value === 'todos' ? projects.length : projects.filter((p) => p.status === value).length}</span>
                       </button>
                     ))}
                   </div>
-                </div>
 
-                {/* Grid de proyectos */}
-                {filteredProjects.length === 0 ? (
-                  <div className="text-center py-16 text-gray-400">
-                    <FolderKanban size={32} className="mx-auto mb-2 opacity-30" />
-                    <p>No hay proyectos {statusFilter !== 'todos' ? `"${STATUS_FILTER_LABELS.find((s) => s.value === statusFilter)?.label.toLowerCase()}"` : ''}</p>
-                    <button onClick={() => { setCreateProjectReturnView('overview'); setView('create_project') }} className="mt-3 text-blue-600 text-sm hover:underline">
-                      + Crear el primer proyecto
-                    </button>
-                  </div>
-                ) : (
-                  <div className="v2-grid">
-                    {filteredProjects.map((project) => {
-                      const pct = getProjectProgress(project.id)
-                      const ptasks = tasks.filter((t) => t.project_id === project.id)
-                      const done = ptasks.filter((t) => t.status === 'completada').length
-                      const clientName = project.client?.name || '—'
-                      const cardTier = pct === 100 ? 'done' : pct === 0 ? 'idle' : ''
-                      const pillClass = project.status === 'activo' ? 'active' : project.status === 'pausado' ? 'paused' : 'completed'
-                      return (
-                        <article
-                          key={project.id}
-                          className={`v2-card ${cardTier}`}
-                          onClick={() => {
-                            setSelectedProject(project)
-                            setView('project')
-                          }}
-                        >
-                          <div className="v2-card-top">
-                            <div
-                              className="v2-avatar-sq"
-                              style={{
-                                background: `linear-gradient(145deg, ${avatarColorFor(clientName)}, ${avatarColorFor(clientName)}cc)`,
-                              }}
-                            >
-                              {initialsOf(clientName)}
-                            </div>
-                            <div className="v2-card-headings">
-                              <div className="v2-kicker-name">{clientName}</div>
-                              <div className="v2-card-title">{project.name}</div>
-                            </div>
-                            <span className={`v2-pill ${pillClass}`}>
-                              <span className="v2-pd" />
-                              {projectStatusLabel(project.status)}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="v2-progress-row">
-                              <span className="v2-progress-label">Progreso</span>
-                              <span className={`v2-progress-val mono ${pct === 100 ? 'v2-v-done' : pct === 0 ? 'v2-v-idle' : pct >= 30 ? 'v2-v-warm' : 'v2-v-mid'}`}>
-                                {Math.round(pct)}
-                                <span style={{ fontSize: 11 }}>%</span>
+                  {filteredProjects.length === 0 ? (
+                    <div className="pc-empty">
+                      <span className="pc-empty-icon"><Folder /></span>
+                      <b>{statusFilter === 'todos' ? 'No hay proyectos' : `No hay proyectos ${STATUS_FILTER_LABELS.find((s) => s.value === statusFilter)?.label.toLowerCase()}`}</b>
+                      <small>Crea tu primer proyecto para empezar a organizar al equipo.</small>
+                      <button type="button" className="pc-btn pc-btn-primary" onClick={() => { setCreateProjectReturnView('overview'); setView('create_project') }}>
+                        <Plus /> Crear el primer proyecto
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="v2-grid">
+                      {filteredProjects.map((project) => {
+                        const pct = getProjectProgress(project.id)
+                        const ptasks = tasks.filter((t) => t.project_id === project.id)
+                        const done = ptasks.filter((t) => t.status === 'completada').length
+                        const clientName = project.client?.name || '—'
+                        const cardTier = pct === 100 ? 'done' : pct === 0 ? 'idle' : ''
+                        const pillClass = project.status === 'activo' ? 'active' : project.status === 'pausado' ? 'paused' : 'completed'
+                        return (
+                          <article
+                            key={project.id}
+                            className={`v2-card ${cardTier}`}
+                            onClick={() => {
+                              setSelectedProject(project)
+                              setView('project')
+                            }}
+                          >
+                            <div className="v2-card-top">
+                              <div
+                                className="v2-avatar-sq"
+                                style={{
+                                  background: `linear-gradient(145deg, ${avatarColorFor(clientName)}, ${avatarColorFor(clientName)}cc)`,
+                                }}
+                              >
+                                {initialsOf(clientName)}
+                              </div>
+                              <div className="v2-card-headings">
+                                <div className="v2-kicker-name">{clientName}</div>
+                                <div className="v2-card-title">{project.name}</div>
+                              </div>
+                              <span className={`v2-pill ${pillClass}`}>
+                                <span className="v2-pd" />
+                                {projectStatusLabel(project.status)}
                               </span>
                             </div>
-                            <div className="v2-track">
-                              <div className={`v2-fill ${fillClassFor(pct)}`} style={{ width: `${pct}%` }} />
+                            <div>
+                              <div className="v2-progress-row">
+                                <span className="v2-progress-label">Progreso</span>
+                                <span className={`v2-progress-val mono ${pct === 100 ? 'v2-v-done' : pct === 0 ? 'v2-v-idle' : pct >= 30 ? 'v2-v-warm' : 'v2-v-mid'}`}>
+                                  {Math.round(pct)}
+                                  <span style={{ fontSize: 11 }}>%</span>
+                                </span>
+                              </div>
+                              <div className="v2-track">
+                                <div className={`v2-fill ${fillClassFor(pct)}`} style={{ width: `${pct}%` }} />
+                              </div>
                             </div>
-                          </div>
-                          <div className="v2-card-foot">
-                            <span className="v2-foot-info">
-                              <CheckCircle2 />{' '}
-                              <b>
-                                {done}/{ptasks.length}
-                              </b>{' '}
-                              tareas
-                            </span>
-                            <button
-                              className="v2-link-btn"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setReportProject(project)
-                              }}
-                            >
-                              Ver reporte <ArrowRight />
-                            </button>
-                          </div>
-                        </article>
-                      )
-                    })}
-                  </div>
-                )}
+                            <div className="v2-card-foot">
+                              <span className="v2-foot-info">
+                                <CheckCircle2 />{' '}
+                                <b>
+                                  {done}/{ptasks.length}
+                                </b>{' '}
+                                tareas
+                              </span>
+                              <button
+                                className="v2-link-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setReportProject(project)
+                                }}
+                              >
+                                Ver reporte <ArrowRight />
+                              </button>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
               </>
             )}
 
