@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LoaderCircle, Pencil, Plus, Trash2, Workflow } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { PROJECT_TEMPLATES, resolveTemplateTasks, templateTaskKey } from '../../data/projectTemplates'
+import { deleteFunnel } from '../../lib/funnels'
+import { PROJECT_TEMPLATES, resolveTemplateTasks } from '../../data/projectTemplates'
 import type { Department, Priority } from '../../types'
 import CreateFunnelTemplateModal, { type EditableFunnel } from './CreateFunnelTemplateModal'
 
@@ -64,28 +65,9 @@ export default function FunnelTemplatesManager() {
     if (!window.confirm(`¿Eliminar el embudo "${funnel.name}"?\n\nSe eliminará esta plantilla y sus ${funnel.tasks.length} tareas predefinidas. También se eliminarán las tareas que este embudo creó para los integrantes.`)) return
     setDeletingId(funnel.id)
     setError('')
-    const { error: syncError } = await supabase.rpc('admin_remove_template_tasks', {
-      p_template_id: funnel.id,
-      p_task_keys: funnel.tasks.map(templateTaskKey),
-    })
-    if (syncError) {
-      setError(`No se pudieron eliminar las tareas asignadas: ${syncError.message}`)
-      setDeletingId('')
-      return
-    }
-    const { error: tasksError } = await supabase.from('template_tasks').delete().eq('template_id', funnel.id)
-    if (tasksError) {
-      setError(`No se pudieron eliminar las tareas del embudo: ${tasksError.message}`)
-      setDeletingId('')
-      return
-    }
-
-    const isBuiltIn = PROJECT_TEMPLATES.some(template => template.id === funnel.id)
-    const result = isBuiltIn
-      ? await supabase.from('project_templates').upsert({ id: funnel.id, name: funnel.name, icon: funnel.icon, description: funnel.description || null, archived: true }, { onConflict: 'id' })
-      : await supabase.from('project_templates').delete().eq('id', funnel.id)
-    if (result.error) {
-      setError(`No se pudo eliminar el embudo: ${result.error.message}`)
+    const problema = await deleteFunnel(funnel)
+    if (problema) {
+      setError(problema)
       setDeletingId('')
       return
     }

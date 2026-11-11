@@ -275,6 +275,12 @@ export default function AdminDashboard() {
     }
   }, [user])
 
+  // Clientes creados en Usuarios y permisos aparecen al entrar a Clientes o a Nuevo proyecto.
+  useEffect(() => {
+    if (view === 'clientes' || view === 'create_project') void fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view])
+
   async function fetchAll() {
     const [{ data: proj }, { data: tsk }, { data: team }, { data: cls }, { data: admins }] = await Promise.all([
       supabase.from('projects').select('*, client:clients(*)').order('created_at', { ascending: false }),
