@@ -11,6 +11,9 @@ interface Meeting {
   status: string
   modality: 'presencial' | 'virtual' | null
   location: string | null
+  address: string | null
+  latitude: number | null
+  longitude: number | null
   meeting_url: string | null
   starts_at: string | null
   ends_at: string | null
@@ -37,6 +40,14 @@ function formatRange(start: string, end: string | null) {
   return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${time(start)}${end ? ` – ${time(end)}` : ''}`
 }
 
+function mapsUrl(meeting: Meeting) {
+  if (meeting.latitude !== null && meeting.longitude !== null) {
+    return `https://www.google.com/maps/search/?api=1&query=${meeting.latitude},${meeting.longitude}`
+  }
+  if (meeting.address) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meeting.address)}`
+  return null
+}
+
 function platform(url: string) {
   if (url.includes('meet.google')) return 'Meet'
   if (url.includes('zoom.')) return 'Zoom'
@@ -50,7 +61,7 @@ export default function UpcomingMeetings({ projectId }: { projectId: string }) {
     let active = true
     supabase
       .from('appointments')
-      .select('id, kind, title, status, modality, location, meeting_url, starts_at, ends_at')
+      .select('*')
       .eq('project_id', projectId)
       .in('status', ['solicitada', 'programada', 'en_curso'])
       .order('starts_at', { ascending: true, nullsFirst: false })
@@ -85,6 +96,14 @@ export default function UpcomingMeetings({ projectId }: { projectId: string }) {
                   <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
                     <MapPin className="h-4 w-4" aria-hidden /> Presencial{meeting.location ? ` · ${meeting.location}` : ''}
                   </p>
+                )}
+                {meeting.modality === 'presencial' && meeting.address && (
+                  <p className="text-sm text-gray-500">{meeting.address}</p>
+                )}
+                {meeting.modality === 'presencial' && mapsUrl(meeting) && (
+                  <a href={mapsUrl(meeting)!} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:text-blue-800">
+                    Ver en Google Maps
+                  </a>
                 )}
               </div>
               <div className="flex items-center gap-2">
