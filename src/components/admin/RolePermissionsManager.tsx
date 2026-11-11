@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock3, Copy, KeyRound, LoaderCircle, Mail, Plus, Search, ShieldCheck, Trash2, UserX, X } from 'lucide-react'
+import { Check, Clock3, Copy, LoaderCircle, Mail, Plus, Search, ShieldCheck, Trash2, UserX, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { sendWelcomeEmail } from '../../lib/inviteEmail'
 import { useAuth } from '../../contexts/AuthContext'
@@ -519,7 +519,7 @@ export default function RolePermissionsManager() {
       <button
         key={person.id}
         onClick={() => setSelectedId(person.id)}
-        className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${selected?.id === person.id ? 'border-blue-300 bg-blue-50' : 'border-transparent bg-white hover:border-gray-200'}`}
+        className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${selected?.id === person.id ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200' : 'border-transparent bg-white hover:bg-[#F4F3F8]'}`}
       >
         <UserAvatar name={person.name} avatarUrl={person.avatarUrl} size={40} />
         <span className="min-w-0 flex-1">
@@ -542,10 +542,8 @@ export default function RolePermissionsManager() {
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600">
-            <KeyRound size={14} /> Administración
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Usuarios y permisos</h1>
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ambar-600">Administración</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Usuarios y permisos</h1>
           <p className="mt-1 text-sm text-gray-500">Administra el acceso individual de clientes, equipo y administradores.</p>
         </div>
         <button
@@ -554,7 +552,7 @@ export default function RolePermissionsManager() {
             resetInvite()
             setInviteOpen(true)
           }}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700"
         >
           <Plus size={17} /> Agregar persona
         </button>
@@ -562,7 +560,7 @@ export default function RolePermissionsManager() {
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+      <div className="inline-flex gap-1 rounded-xl border border-gray-200/70 bg-white p-1 shadow-sm">
         {(
           [
             ['client', 'Clientes'],
@@ -576,16 +574,16 @@ export default function RolePermissionsManager() {
               setTab(value)
               setSearch('')
             }}
-            className={`rounded-lg px-5 py-2 text-sm font-semibold ${tab === value ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${tab === value ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'text-gray-600 hover:bg-[#F4F3F8]'}`}
           >
-            {label} <span className="ml-1 opacity-70">{value === tab ? people.length : ''}</span>
+            {label}{value === tab && <span className="rounded-md bg-white/25 px-1.5 text-[11px]">{people.length}</span>}
           </button>
         ))}
       </div>
 
-      <div className="grid min-h-[620px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[340px_1fr]">
-        <aside className="border-r border-gray-200 bg-gray-50/60 p-4">
-          <div className="mb-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+      <div className="grid gap-4 lg:grid-cols-[340px_1fr] lg:items-start">
+        <aside className="rounded-2xl border border-gray-200/70 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-transparent bg-[#F4F3F8] px-3 py-2.5 focus-within:border-blue-500 focus-within:bg-white">
             <Search size={15} className="text-gray-400" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar persona..." className="w-full bg-transparent text-sm outline-none" />
           </div>
@@ -602,12 +600,12 @@ export default function RolePermissionsManager() {
           {visiblePeople.length === 0 && <p className="py-12 text-center text-sm text-gray-400">No hay personas en esta sección.</p>}
         </aside>
 
-        <main className="p-5 lg:p-7">
+        <main className="rounded-2xl border border-gray-200/70 bg-white p-5 shadow-sm lg:p-6">
           {!selected ? (
             <div className="grid h-full place-items-center text-sm text-gray-400">Selecciona o agrega una persona.</div>
           ) : (
             <>
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-5">
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-gray-900">{selected.name}</h2>
@@ -640,14 +638,14 @@ export default function RolePermissionsManager() {
                     <button
                       onClick={toggleAccess}
                       disabled={saving === 'delete'}
-                      className="flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-lg border border-ambar/40 bg-ambar-50 px-3 py-2 text-xs font-semibold text-ambar-700 hover:bg-ambar-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {saving === 'delete' ? <LoaderCircle className="animate-spin" size={14} /> : <UserX size={14} />} {selected.active ? 'Desactivar acceso' : 'Reactivar acceso'}
                     </button>
                     <button
                       onClick={prepareRemoval}
                       disabled={saving === 'remove' || saving === 'inspect-remove'}
-                      className="flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
                     >
                       {saving === 'remove' || saving === 'inspect-remove' ? <LoaderCircle className="animate-spin" size={14} /> : <Trash2 size={14} />} Eliminar persona
                     </button>
@@ -687,10 +685,10 @@ export default function RolePermissionsManager() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-3 flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                  <div className="mb-3 flex items-center justify-between rounded-xl bg-blue-100/70 px-4 py-3.5">
                     <div>
-                      <p className="text-sm font-bold text-blue-900">Acceso a todas las secciones</p>
-                      <p className="text-xs text-blue-600">Control individual para esta persona</p>
+                      <p className="text-sm font-bold text-gray-900">Acceso a todas las secciones</p>
+                      <p className="text-xs text-gray-500">Control individual para esta persona</p>
                     </div>
                     <button
                       onClick={toggleAll}
@@ -700,13 +698,13 @@ export default function RolePermissionsManager() {
                       <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${SECTIONS[tab].every((section) => allowed(section.key)) ? 'left-6' : 'left-1'}`} />
                     </button>
                   </div>
-                  <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
+                  <div className="space-y-2">
                     {SECTIONS[tab].map((section) => {
                       const enabled = allowed(section.key)
                       return (
-                        <div key={section.key} className="flex items-center gap-3 px-4 py-3.5">
-                          <span className={`grid h-9 w-9 place-items-center rounded-lg ${enabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                            <Check size={16} />
+                        <div key={section.key} className="flex items-center gap-3 rounded-xl border border-gray-200/70 bg-white px-4 py-3">
+                          <span className={`grid h-9 w-9 place-items-center rounded-lg ${enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-[#F1F0F6] text-gray-400'}`}>
+                            {enabled ? <Check size={16} /> : <span className="h-0.5 w-3 rounded bg-current" />}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-semibold text-gray-800">{section.label}</span>
