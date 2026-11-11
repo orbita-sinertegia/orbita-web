@@ -121,5 +121,5 @@ test('Tareas del equipo: diseño en dos paneles con buscadores suaves y estado v
   assert.match(ui, /lg:grid-cols-\[300px_minmax\(0,1fr\)\] lg:items-start/)
   assert.match(ui, /bg-\[#F4F3F8\]/)
   assert.match(ui, /No hay tareas con estos filtros/)
-  assert.match(read('src/index.css'), /\.ui-dark \.bg-\\[\#F4F3F8\\]/)
+  assert.ok(read('src/index.css').includes(String.raw`.ui-dark .bg-\[\#F4F3F8\]`))
 })
