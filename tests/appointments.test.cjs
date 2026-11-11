@@ -70,3 +70,14 @@ test('evidencia: bucket privado, solo admins suben, clientes ven solo lo visible
   assert.match(privacy, /Evidencia de citas/)
   assert.match(privacy, /minutos de retardo/)
 })
+
+test('ubicación: estudio de la agencia o domicilio del cliente, y descarga de la app', () => {
+  const sql = read('sql/2026-11-11_ubicacion_citas.sql')
+  assert.match(sql, /create table if not exists public\.appointment_places/)
+  assert.match(sql, /'Indica si la cita es en el estudio o en tu domicilio'/)
+  assert.match(sql, /'Solo un administrador agrega lugares'/)
+  assert.match(sql, /drop function if exists public\.request_appointment\(uuid, text, text, jsonb\);/)
+  assert.ok(sql.indexOf('PRUEBA FALLIDA') < sql.lastIndexOf('commit;'))
+  assert.match(read('src/components/roadmap/UpcomingMeetings.tsx'), /Ver en Google Maps/)
+  assert.match(read('public/app.html'), /releases\/latest\/download\/orbita-citas\.apk/)
+})
