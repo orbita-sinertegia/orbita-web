@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { LoaderCircle, Pencil, Plus, Trash2, Workflow } from 'lucide-react'
+import { LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { deleteFunnel } from '../../lib/funnels'
 import { PROJECT_TEMPLATES, resolveTemplateTasks } from '../../data/projectTemplates'
@@ -81,19 +81,19 @@ export default function FunnelTemplatesManager() {
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div><div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-600"><Workflow size={14} /> Plantillas de proyectos</div><h1 className="text-2xl font-bold text-gray-900">Embudos</h1><p className="mt-1 text-sm text-gray-500">Administra las tareas que se crearán automáticamente en cada tipo de proyecto.</p></div>
-        <button onClick={() => setEditing(null)} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><Plus size={17} /> Crear embudo</button>
+        <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ambar-600">Plantillas de proyectos</p><h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Embudos</h1><p className="mt-1 text-sm text-gray-500">Administra las tareas que se crearán automáticamente en cada tipo de proyecto.</p></div>
+        <button onClick={() => setEditing(null)} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/30 hover:bg-blue-700"><Plus size={17} /> Crear embudo</button>
       </header>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {funnels.map(funnel => (
-          <article key={funnel.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3"><span className="grid h-12 w-12 place-items-center rounded-xl bg-blue-50 text-2xl">{funnel.icon}</span><div className="flex gap-2"><button onClick={() => setEditing(funnel)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"><Pencil size={13} /> Editar</button><button onClick={() => void removeFunnel(funnel)} disabled={deletingId === funnel.id} className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">{deletingId === funnel.id ? <LoaderCircle className="animate-spin" size={13} /> : <Trash2 size={13} />} Eliminar</button></div></div>
+        {funnels.map((funnel, index) => (
+          <article key={funnel.id} className="rounded-2xl border border-gray-200/70 bg-white shadow-sm p-5 transition hover:shadow-md">
+            <div className="flex items-start justify-between gap-3"><span className={`grid h-12 w-12 place-items-center rounded-xl text-2xl ${['bg-blue-100', 'bg-ambar-100', 'bg-purple-100', 'bg-emerald-50'][index % 4]}`}>{funnel.icon}</span><div className="flex gap-2"><button onClick={() => setEditing(funnel)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:border-blue-200 hover:text-blue-700"><Pencil size={13} /> Editar</button><button onClick={() => void removeFunnel(funnel)} disabled={deletingId === funnel.id} className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">{deletingId === funnel.id ? <LoaderCircle className="animate-spin" size={13} /> : <Trash2 size={13} />} Eliminar</button></div></div>
             <h2 className="mt-4 text-lg font-bold text-gray-900">{funnel.name}</h2>
             <p className="mt-1 min-h-10 text-sm text-gray-500">{funnel.description}</p>
-            <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4"><span className="text-sm font-semibold text-blue-600">{funnel.tasks.length} tareas</span><span className="text-xs text-gray-400">Reutilizable</span></div>
+            <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4"><span className="text-sm font-bold text-gray-900">{funnel.tasks.length} {funnel.tasks.length === 1 ? 'tarea' : 'tareas'}</span><span className="rounded-md bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-700">Reutilizable</span></div>
           </article>
         ))}
       </div>
