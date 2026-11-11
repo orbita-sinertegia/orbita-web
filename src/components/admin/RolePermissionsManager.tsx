@@ -62,6 +62,16 @@ interface Person {
   active: boolean
   avatarUrl?: string | null
   isSuperAdmin?: boolean
+  /** Invitación de equipo o administración que aún no se acepta. */
+  invitationId?: string
+}
+
+interface PendingTeamInvite {
+  id: string
+  email: string
+  full_name: string | null
+  role: 'team' | 'admin'
+  department: string | null
 }
 
 export default function RolePermissionsManager() {
@@ -69,6 +79,7 @@ export default function RolePermissionsManager() {
   const [tab, setTab] = useState<Tab>('client')
   const [users, setUsers] = useState<User[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [pendingInvites, setPendingInvites] = useState<PendingTeamInvite[]>([])
   const [departments, setDepartments] = useState<WorkDepartment[]>(DEFAULT_DEPARTMENTS.map(([id, name]) => ({ id, name })))
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [roleDefaults, setRoleDefaults] = useState<Record<string, boolean>>({})
@@ -99,13 +110,22 @@ export default function RolePermissionsManager() {
 
   async function load() {
     setLoading(true)
-    const [usersResult, clientsResult, permissionsResult, defaultsResult, departmentsResult] = await Promise.all([
+    const [usersResult, clientsResult, permissionsResult, defaultsResult, departmentsResult, invitesResult] = await Promise.all([
       supabase.from('users').select('*').order('full_name'),
       supabase.from('clients').select('*').order('name'),
       supabase.from('user_permissions').select('user_id, section_key, allowed'),
       supabase.from('role_permissions').select('role, section_key, allowed'),
       supabase.from('team_departments').select('id, name').eq('active', true).order('name'),
+      supabase.from('team_invitations').select('id, email, full_name, role, department').eq('used', false).order('created_at', { ascending: false }),
     ])
+    // Una sola entrada por correo: la invitación más reciente.
+    const seen = new Set<string>()
+    setPendingInvites(((invitesResult.data as PendingTeamInvite[]) || []).filter((invite) => {
+      const key = invite.email.trim().toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    }))
     setUsers((usersResult.data as User[]) || [])
     setClients((clientsResult.data as Client[]) || [])
     if (departmentsResult.data?.length) setDepartments(departmentsResult.data as WorkDepartment[])
@@ -134,7 +154,19 @@ export default function RolePermissionsManager() {
           avatarUrl: linked?.avatar_url || client.avatar_url,
         }
       })
-    return users
+    const registered = new Set(users.map((item) => item.email?.trim().toLowerCase()))
+    const pending: Person[] = pendingInvites
+      .filter((invite) => invite.role === tab && !registered.has(invite.email.trim().toLowerCase()))
+      .map((invite) => ({
+        id: `inv:${invite.id}`,
+        name: invite.full_name || invite.email,
+        email: invite.email,
+        role: tab,
+        subtitle: departments.find((department) => department.id === invite.department)?.name || invite.department || (tab === 'admin' ? 'Administrador' : 'Sin departamento'),
+        active: true,
+        invitationId: invite.id,
+      }))
+    return pending.concat(users
       .filter((item) => item.role === tab && !item.directory_hidden)
       .map((item) => ({
         id: item.id,
@@ -146,8 +178,8 @@ export default function RolePermissionsManager() {
         active: item.active !== false,
         avatarUrl: item.avatar_url,
         isSuperAdmin: item.is_super_admin,
-      }))
-  }, [tab, users, clients, departments])
+      })))
+  }, [tab, users, clients, departments, pendingInvites])
 
   const visiblePeople = people.filter((person) => `${person.name} ${person.email}`.toLowerCase().includes(search.toLowerCase()))
   const groupedTeamPeople = useMemo(() => {
@@ -285,7 +317,7 @@ export default function RolePermissionsManager() {
     setError('')
     const { error: saveError } = await supabase.from('team_departments').upsert({ id, name, active: true }, { onConflict: 'id' })
     if (saveError) {
-      setError('No se pudo crear el departamento.')
+      setError(`No se pudo crear el departamento${saveError.message ? `: ${saveError.message}` : '.'}`)
       setSaving('')
       return
     }
@@ -304,6 +336,39 @@ export default function RolePermissionsManager() {
       await supabase.from('clients').update({ active: nextActive }).eq('id', selected.id)
       if (selected.userId) await supabase.from('users').update({ active: nextActive }).eq('id', selected.userId)
     } else if (selected.userId) await supabase.from('users').update({ active: nextActive }).eq('id', selected.userId)
+    await load()
+    setSaving('')
+  }
+
+  function pendingInviteUrl(invitationId: string) {
+    return `${window.location.origin}?team_invite=${invitationId}`
+  }
+
+  async function copyPendingInvite(invitationId: string) {
+    await navigator.clipboard.writeText(pendingInviteUrl(invitationId))
+    setInviteStatus('Enlace copiado.')
+  }
+
+  async function resendPendingInvite(person: Person) {
+    if (!person.invitationId) return
+    setSaving('resend')
+    const sent = await sendWelcomeEmail({
+      email: person.email, fullName: person.name,
+      roleLabel: person.role === 'admin' ? 'administrador' : 'integrante del equipo',
+      inviteUrl: pendingInviteUrl(person.invitationId),
+    })
+    setInviteStatus(sent ? 'Correo reenviado. Si no llega, que revise Spam o Promociones.' : 'No se pudo enviar el correo. Copia el enlace y compártelo.')
+    setSaving('')
+  }
+
+  async function deletePendingInvite(person: Person) {
+    if (!person.invitationId) return
+    setSaving('remove')
+    setError('')
+    const { error: deleteError } = await supabase.from('team_invitations').delete()
+      .eq('used', false).ilike('email', person.email.trim())
+    if (deleteError) setError('No se pudo eliminar la invitación.')
+    setSelectedId('')
     await load()
     setSaving('')
   }
@@ -552,7 +617,7 @@ export default function RolePermissionsManager() {
                     {selected.subtitle} · {selected.email}
                   </p>
                 </div>
-                {!selected.isSuperAdmin && (
+                {!selected.isSuperAdmin && !selected.invitationId && (
                   <div className="flex flex-wrap gap-2">
                     {selected.role === 'team' && (
                       <button
@@ -605,7 +670,18 @@ export default function RolePermissionsManager() {
                   <WeeklyScheduleEditor key={`${selected.userId}-${JSON.stringify(users.find(user => user.id === selected.userId)?.work_schedule)}`} user={users.find(user => user.id === selected.userId)} saving={saving === 'work-schedule'} onSave={updateWorkSchedule} />
                 </div>
               )}
-              {!selected.userId ? (
+              {selected.invitationId ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  <p className="font-semibold">Invitación enviada: falta que {selected.name} cree su cuenta.</p>
+                  <p className="mt-1">Aparecerá como integrante en cuanto abra su enlace y se registre. Comparte el enlace por WhatsApp si el correo no le llegó.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void copyPendingInvite(selected.invitationId!)} className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100"><Copy size={14} /> Copiar enlace</button>
+                    <button type="button" onClick={() => void resendPendingInvite(selected)} disabled={saving === 'resend'} className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50">{saving === 'resend' ? <LoaderCircle className="animate-spin" size={14} /> : <Mail size={14} />} Reenviar correo</button>
+                    <button type="button" onClick={() => void deletePendingInvite(selected)} disabled={saving === 'remove'} className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={14} /> Eliminar invitación</button>
+                  </div>
+                  {inviteStatus && <p className="mt-2 text-xs font-semibold">{inviteStatus}</p>}
+                </div>
+              ) : !selected.userId ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                   Este cliente todavía no ha aceptado su invitación. Podrás personalizar sus permisos cuando cree su cuenta.
                 </div>
