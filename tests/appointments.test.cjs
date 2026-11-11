@@ -116,6 +116,18 @@ test('Panel de Control: indicadores, resumen con 3 métricas, atención y proyec
   assert.match(css, /prefers-reduced-motion:reduce\)\{\.v2app \.pc-kpi/)
 })
 
+test('Rendimiento solo con Scorecard y nuevo diseño de Asistencia, Solicitudes y Usuarios', () => {
+  const dash = read('src/components/admin/AdminDashboard.tsx')
+  assert.doesNotMatch(dash, /WeeklyScorecard|Tablero semanal/)
+  assert.match(dash, /view === 'performance' && <TeamPerformance /)
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'src/components/admin/WeeklyScorecard.tsx')))
+  assert.match(read('src/components/admin/TaskRequestsPanel.tsx'), /No hay solicitudes pendientes/)
+  assert.match(read('src/components/admin/AttendancePanel.tsx'), /SUMMARY_COLORS/)
+  const perms = read('src/components/admin/RolePermissionsManager.tsx')
+  assert.match(perms, /lg:grid-cols-\[340px_1fr\] lg:items-start/)
+  assert.match(perms, /Acceso a todas las secciones/)
+})
+
 test('Tareas del equipo: diseño en dos paneles con buscadores suaves y estado vacío', () => {
   const ui = read('src/components/admin/TeamTasksManager.tsx')
   assert.match(ui, /lg:grid-cols-\[300px_minmax\(0,1fr\)\] lg:items-start/)
