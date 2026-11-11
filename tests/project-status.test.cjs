@@ -128,7 +128,7 @@ test('el panel oculta por omisión las pendientes de proyectos finalizados y per
   assert.match(src, /hideDormantTasks\(tasks, showFinalized\)/)
   assert.match(src, /<TeamCalendar [^>]*tasks=\{operationalTasks\}/)
   assert.match(src, /<TeamTasksManager [^>]*tasks=\{operationalTasks\}/)
-  assert.match(src, /<WeeklyScorecard [^>]*tasks=\{metricTasks\}/)
+  assert.match(src, /<TeamPerformance [^>]*tasks=\{metricTasks\}/)
   // El detalle del proyecto sigue recibiendo todas sus tareas (historial).
   assert.match(src, /tasks=\{tasks\.filter\(\(t\) => t\.project_id === selectedProject\.id\)\}/)
   assert.match(src, /label: 'Finalizados'/)
