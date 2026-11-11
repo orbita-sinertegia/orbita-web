@@ -57,6 +57,7 @@ function harness(file, initial, replies = [], auth = {}, props = {}) {
       if (id === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }
       if (id.endsWith('/supabase')) return { supabase: database }
       if (id.endsWith('/AuthContext')) return { useAuth: () => ({ user, ...auth }) }
+      if (id.endsWith('/inviteAccount')) return { createOrSignIn: async (email, password) => { const { data, error } = await database.auth.signUp({ email, password }); return !error && data?.user ? { ok: true } : { ok: false, message: 'No se pudo crear la cuenta. Intenta de nuevo.' } } }
       if (id.endsWith('/projectStatus')) return loadModule('src/lib/projectStatus.ts')
       if (id.endsWith('/adminTasks')) return loadModule('src/lib/adminTasks.ts')
       if (id.endsWith('/taskDelays')) return loadModule('src/lib/taskDelays.ts')

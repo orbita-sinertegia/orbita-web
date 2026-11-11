@@ -50,14 +50,18 @@ serve(async request => {
       auth: { user: gmailUser, pass: gmailPassword },
     })
 
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: { name: 'Órbita', address: gmailUser },
+      replyTo: gmailUser,
       to: recipient,
       subject: 'Te damos la bienvenida a Órbita',
       text: `Hola, ${String(fullName || 'te invitamos')}.\n\nTe damos la bienvenida a Órbita. Tu acceso con el perfil ${String(roleLabel || 'usuario')} ya está listo. Crea tu cuenta aquí:\n${url.toString()}\n\nSi no esperabas este correo, puedes ignorarlo.`,
       html: `<div style="font-family:Arial,sans-serif;background:#f4f5fb;padding:32px"><div style="max-width:560px;margin:auto;background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 30px;color:white;background:linear-gradient(120deg,#9333EA,#6B21A8,#A855F7)"><b style="font-size:20px">Órbita</b></div><div style="padding:30px"><h2 style="color:#111827">Hola, ${safeName}</h2><p style="color:#667085;line-height:1.6">Te damos la bienvenida a Órbita. Tu acceso con el perfil <b>${safeRole}</b> ya está listo: crea tu cuenta con este botón.</p><a href="${safeUrl}" style="display:inline-block;margin-top:16px;background:#9333EA;color:white;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:bold">Crear mi cuenta</a><p style="margin-top:24px;color:#98a2b3;font-size:12px">Si no esperabas este correo, puedes ignorarlo.</p></div></div></div>`,
     })
 
+    // Registro sin datos personales: cuántos destinos aceptó o rechazó Gmail.
+    console.log('send-user-invitation: aceptados', info.accepted?.length ?? 0, 'rechazados', info.rejected?.length ?? 0, 'respuesta', String(info.response || '').slice(0, 60))
+    if (info.rejected?.length) throw new Error('Gmail rechazó el correo de destino')
     return new Response(JSON.stringify({ success: true }), { headers: { ...cors, 'Content-Type': 'application/json' } })
   } catch (error) {
     console.error('send-user-invitation:', error instanceof Error ? error.message : error)
