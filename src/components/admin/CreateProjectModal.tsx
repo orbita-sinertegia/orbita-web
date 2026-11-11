@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { X, Plus, ChevronLeft, CheckSquare, Square, GripVertical, MoreVertical, Pencil, Trash2, MessageSquare, Check, Copy, UserPlus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { projectStageColumnsExist } from '../../lib/projectColumns'
-import { FUNNEL_TYPES, FUNNEL_TYPE_LABELS, PROJECT_STAGES, PROJECT_STAGE_LABELS } from '../../lib/roadmapEstimate'
+import { deleteFunnel } from '../../lib/funnels'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Client, Department, Priority, User } from '../../types'
 import { resolveTemplateOwners } from '../../data/templateOwners'
 import { askInviteEmail, sendWelcomeEmail } from '../../lib/inviteEmail'
-import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, inferPhase, funnelTypeForTemplate, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
-import CreateFunnelTemplateModal from './CreateFunnelTemplateModal'
+import { PROJECT_TEMPLATES, GROUP_LABELS, GROUP_COLORS, TEMPLATE_GROUP_ORDER, DEPT_LABELS, resolveTemplateTasks, templateTaskKey, inferPhase, BUILT_IN_TEMPLATE_IDS, type Modalidad, type Phase } from '../../data/projectTemplates'
+import CreateFunnelTemplateModal, { type EditableFunnel } from './CreateFunnelTemplateModal'
 
 interface CustomTemplate { id: string; name: string; icon: string; description: string | null; taskCount: number }
 interface DbProjectTemplate { id: string; name: string; icon: string; description: string | null; archived?: boolean }
@@ -37,10 +36,12 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
   const [mode, setMode] = useState<'existing' | 'new'>('existing')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [newClient, setNewClient] = useState({ name: '', company: '' })
-  const [form, setForm] = useState({ name: '', description: '', templateId: '', modalidad: 'oficina' as Modalidad, stage: 'en_proceso', funnelType: '' })
-  // Etapa y tipo de embudo: solo si la base ya tiene las columnas (sql/2026-11-02_etapa_proyecto.sql).
-  const [hasStageColumns, setHasStageColumns] = useState(false)
-  useEffect(() => { let alive = true; void projectStageColumnsExist().then(ok => { if (alive) setHasStageColumns(ok) }); return () => { alive = false } }, [])
+  const [form, setForm] = useState({ name: '', description: '', templateId: '', modalidad: 'oficina' as Modalidad })
+  // Menú ⋯ de cada embudo: ver sus tareas, editarlo o eliminarlo sin salir de aquí.
+  const [funnelMenu, setFunnelMenu] = useState('')
+  const [funnelPreview, setFunnelPreview] = useState('')
+  const [editingFunnel, setEditingFunnel] = useState<EditableFunnel | undefined>(undefined)
+  const [deletingFunnel, setDeletingFunnel] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [error, setError] = useState('')
@@ -107,15 +108,34 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
     setTemplatesLoaded(true)
   }
 
+  function funnelForEdit(tpl: { id: string; name: string; icon: string; description?: string | null }): EditableFunnel {
+    return {
+      id: tpl.id, name: tpl.name, icon: tpl.icon, description: tpl.description || '',
+      tasks: storedTemplateTasks.filter(task => task.template_id === tpl.id).map(({ title, department, priority }) => ({ title, department, priority })),
+    }
+  }
+
+  async function removeFunnel(tpl: { id: string; name: string; icon: string; description?: string | null }) {
+    const funnel = funnelForEdit(tpl)
+    if (!window.confirm(`¿Eliminar el embudo "${funnel.name}"?\n\nSe eliminará con sus ${funnel.tasks.length} tareas predefinidas. También se quitarán las tareas que este embudo creó en los proyectos.`)) return
+    setDeletingFunnel(funnel.id)
+    setError('')
+    const problema = await deleteFunnel(funnel)
+    if (problema) setError(problema)
+    if (form.templateId === funnel.id) setForm(f => ({ ...f, templateId: '' }))
+    if (funnelPreview === funnel.id) setFunnelPreview('')
+    await fetchCustomTemplates()
+    setDeletingFunnel('')
+  }
+
   async function handleFunnelCreated(tpl: { id: string; name: string; icon: string; description: string }) {
     setShowCreateFunnel(false)
     await fetchCustomTemplates()
-    setForm(f => ({ ...f, templateId: tpl.id, funnelType: funnelTypeForTemplate(tpl.id, tpl.name) || f.funnelType }))
+    setForm(f => ({ ...f, templateId: tpl.id }))
   }
 
-  // Al elegir plantilla se sugiere el tipo de embudo (se puede cambiar después en el selector).
-  function selectTemplate(templateId: string, templateName = '') {
-    setForm(f => ({ ...f, templateId, funnelType: funnelTypeForTemplate(templateId, templateName) || f.funnelType }))
+  function selectTemplate(templateId: string) {
+    setForm(f => ({ ...f, templateId }))
   }
 
   // El grupo Cliente ya no es elegible: sus tareas siempre son del usuario cliente del proyecto.
@@ -408,7 +428,6 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
       status: 'activo',
       source_template_id: form.templateId === 'otro' ? null : form.templateId,
       recording_mode: form.modalidad,
-      ...(hasStageColumns ? { stage: form.stage || null, funnel_type: form.funnelType || null } : {}),
     }).select().single()
     if (projErr || !project) { setError('Error al crear el proyecto'); setSaving(false); return }
 
@@ -630,25 +649,40 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
               <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Tipo de embudo *</label>
               <div className="grid grid-cols-3 gap-3">
                 {customTemplates.map(tpl => (
-                  <button key={tpl.id} type="button"
-                    onClick={() => selectTemplate(tpl.id, tpl.name)}
-                    className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
-                      form.templateId === tpl.id
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
-                    }`}>
-                    <p className="text-2xl mb-1">{tpl.icon}</p>
-                    <p className="font-semibold text-sm text-gray-800">{tpl.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-tight">{tpl.description}</p>
-                    {tpl.taskCount > 0 && (
-                      <p className="text-xs font-semibold text-blue-500 mt-2">{tpl.taskCount} tareas</p>
+                  <div key={tpl.id} className="relative">
+                    <button type="button"
+                      onClick={() => selectTemplate(tpl.id)}
+                      className={`w-full h-full border-2 rounded-xl p-4 pr-9 text-left transition cursor-pointer ${
+                        form.templateId === tpl.id
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                      }`}>
+                      <p className="text-2xl mb-1">{tpl.icon}</p>
+                      <p className="font-semibold text-sm text-gray-800">{tpl.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 leading-tight">{tpl.description}</p>
+                      <p className="text-xs font-semibold text-blue-500 mt-2">{tpl.taskCount} {tpl.taskCount === 1 ? 'tarea' : 'tareas'}</p>
+                    </button>
+                    <button type="button" aria-label={`Opciones del embudo ${tpl.name}`} aria-haspopup="menu" aria-expanded={funnelMenu === tpl.id}
+                      onClick={() => setFunnelMenu(funnelMenu === tpl.id ? '' : tpl.id)}
+                      className="absolute right-1.5 top-1.5 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                      <MoreVertical size={16} />
+                    </button>
+                    {funnelMenu === tpl.id && (
+                      <div role="menu" className="absolute right-1.5 top-9 z-20 w-40 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 text-sm shadow-lg">
+                        <button type="button" role="menuitem" onClick={() => { setFunnelPreview(funnelPreview === tpl.id ? '' : tpl.id); setFunnelMenu('') }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"><CheckSquare size={14} /> {funnelPreview === tpl.id ? 'Ocultar tareas' : 'Ver tareas'}</button>
+                        <button type="button" role="menuitem" onClick={() => { setEditingFunnel(funnelForEdit(tpl)); setFunnelMenu('') }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"><Pencil size={14} /> Editar</button>
+                        <button type="button" role="menuitem" onClick={() => { setFunnelMenu(''); void removeFunnel(tpl) }} disabled={deletingFunnel === tpl.id}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={14} /> Eliminar</button>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 ))}
 
                 {PROJECT_TEMPLATES.filter(t => t.id === 'otro' && !archivedTemplateIds.has(t.id)).map(tpl => (
                   <button key={tpl.id} type="button"
-                    onClick={() => selectTemplate(tpl.id, tpl.name)}
+                    onClick={() => selectTemplate(tpl.id)}
                     className={`border-2 rounded-xl p-4 text-left transition cursor-pointer ${
                       form.templateId === tpl.id
                         ? 'border-blue-600 bg-blue-50'
@@ -667,28 +701,32 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
                   <p className="text-xs text-gray-400 mt-0.5 leading-tight">Define sus tareas una sola vez y reúsalo</p>
                 </button>
               </div>
+              {funnelPreview && (() => {
+                const tpl = customTemplates.find(item => item.id === funnelPreview)
+                const lista = storedTemplateTasks.filter(task => task.template_id === funnelPreview)
+                return tpl ? (
+                  <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-bold text-gray-800">Tareas de {tpl.name}</p>
+                      <button type="button" onClick={() => setFunnelPreview('')} aria-label="Cerrar lista de tareas" className="rounded p-1 text-gray-400 hover:text-gray-700"><X size={14} /></button>
+                    </div>
+                    {lista.length === 0 ? (
+                      <p className="text-xs text-gray-500">Este embudo todavía no tiene tareas. Usa ⋯ → Editar para agregarlas.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {lista.map((task, i) => (
+                          <li key={`${task.title}-${i}`} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
+                            <span className="font-medium text-gray-800">{task.title}</span>
+                            <span className="shrink-0 text-gray-400">{DEPT_LABELS[task.department] || task.department}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null
+              })()}
             </div>
 
-            {hasStageColumns && (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <label className="block">
-                  <span className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Etapa</span>
-                  <select aria-label="Etapa del proyecto" value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Sin definir</option>
-                    {PROJECT_STAGES.map(stage => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Tipo de embudo</span>
-                  <select aria-label="Tipo de embudo" value={form.funnelType} onChange={e => setForm({ ...form, funnelType: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">Sin definir</option>
-                    {FUNNEL_TYPES.map(type => <option key={type} value={type}>{FUNNEL_TYPE_LABELS[type]}</option>)}
-                  </select>
-                </label>
-              </div>
-            )}
 
             {blockedNoClientUser && (
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
@@ -976,6 +1014,14 @@ export default function CreateProjectModal({ clients, teamMembers, onClose, onCr
             </div>
           </div>
         </div>
+      )}
+
+      {editingFunnel && (
+        <CreateFunnelTemplateModal
+          template={editingFunnel}
+          onClose={() => setEditingFunnel(undefined)}
+          onCreated={() => { setEditingFunnel(undefined); void fetchCustomTemplates() }}
+        />
       )}
 
       {showCreateFunnel && (
