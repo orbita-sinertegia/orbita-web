@@ -81,3 +81,14 @@ test('ubicación: estudio de la agencia o domicilio del cliente, y descarga de l
   assert.match(read('src/components/roadmap/UpcomingMeetings.tsx'), /Ver en Google Maps/)
   assert.match(read('public/app.html'), /releases\/latest\/download\/orbita-citas\.apk/)
 })
+
+test('push: tokens privados, envío una sola vez y sin bloquear el aviso', () => {
+  const sql = read('sql/2026-11-11_push.sql')
+  assert.match(sql, /revoke all on public\.device_tokens from anon, authenticated, public;/)
+  assert.match(sql, /exception when others then\s+raise warning 'enviar-push/)
+  const fn = read('supabase/functions/enviar-push/index.ts')
+  assert.match(fn, /\.is\('pushed_at', null\)/)
+  assert.match(fn, /Deno\.env\.get\('FCM_SERVICE_ACCOUNT'\)/)
+  assert.match(fn, /priority: 'HIGH'/)
+  assert.doesNotMatch(fn, /private_key"\s*:/)
+})
