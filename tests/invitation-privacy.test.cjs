@@ -10,7 +10,7 @@ test('la invitación de cliente muestra el correo fijo y se registra con él', (
   const page = read('src/components/auth/ClientRegistrationPage.tsx')
   assert.match(page, /rpc\('get_client_invitation'/)
   assert.doesNotMatch(page, /from\('client_invitations'\)/)
-  assert.match(page, /email: invite!\.email/)
+  assert.match(page, /createOrSignIn\(invite!\.email/)
   assert.doesNotMatch(page, /type="email"/)
   assert.match(page, /\{invite\?\.email\}/)
 })
@@ -68,4 +68,16 @@ test('el SQL quita el acceso abierto y solo se aplica si pasan sus pruebas', () 
   assert.match(sql, /before insert on auth\.users/)
   assert.match(sql, /sin-invitacion@example\.com/)
   assert.ok(sql.indexOf('PRUEBA FALLIDA') < sql.lastIndexOf('commit;'))
+})
+
+test('una invitación nueva para un correo que ya tiene cuenta se acepta con su contraseña', () => {
+  const helper = read('src/lib/inviteAccount.ts')
+  assert.match(helper, /User already registered/)
+  assert.match(helper, /signInWithPassword\(\{ email, password \}\)/)
+  for (const page of ['src/components/auth/ClientRegistrationPage.tsx', 'src/components/auth/TeamRegistrationPage.tsx']) {
+    const source = read(page)
+    assert.match(source, /createOrSignIn\(/)
+    assert.doesNotMatch(source, /Este correo ya tiene una cuenta registrada/)
+  }
+  assert.match(read('supabase/functions/send-user-invitation/index.ts'), /info\.rejected\?\.length/)
 })

@@ -439,7 +439,7 @@ export default function RolePermissionsManager() {
     setInviteLink(url)
     const roleLabel = tab === 'admin' ? 'administrador' : tab === 'team' ? 'integrante del equipo' : 'cliente'
     const mailSent = await sendWelcomeEmail({ email: invite.email.trim(), fullName: invite.full_name.trim(), roleLabel, inviteUrl: url })
-    setInviteStatus(mailSent ? 'Correo de bienvenida enviado.' : 'Invitación creada, pero no se pudo enviar el correo. Comparte el enlace.')
+    setInviteStatus(mailSent ? 'Correo de bienvenida enviado. Si no llega en unos minutos, que revise Spam o Promociones; también puedes compartir el enlace.' : 'Invitación creada, pero no se pudo enviar el correo. Comparte el enlace.')
     setSaving('')
     await load()
   }
