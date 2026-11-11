@@ -92,3 +92,15 @@ test('push: tokens privados, envío una sola vez y sin bloquear el aviso', () =>
   assert.match(fn, /priority: 'HIGH'/)
   assert.doesNotMatch(fn, /private_key"\s*:/)
 })
+
+test('embudos: se eliminan con su función, se administran desde Nuevo proyecto y sin Etapa/Tipo de embudo', () => {
+  const sql = read('sql/2026-11-11_embudos.sql')
+  assert.match(sql, /create or replace function public\.admin_remove_template_tasks/)
+  assert.match(sql, /add column if not exists source_template_key text/)
+  const modal = read('src/components/admin/CreateProjectModal.tsx')
+  assert.match(modal, /Opciones del embudo/)
+  assert.match(modal, /deleteFunnel\(funnel\)/)
+  assert.doesNotMatch(modal, /Etapa del proyecto|FUNNEL_TYPES/)
+  assert.doesNotMatch(read('src/components/admin/ProjectDetail.tsx'), /FUNNEL_TYPES|PROJECT_STAGES/)
+  assert.match(read('src/components/admin/AdminDashboard.tsx'), /view === 'clientes' \|\| view === 'create_project'/)
+})

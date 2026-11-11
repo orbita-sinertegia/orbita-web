@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Archive, CheckCircle2, Plus, ChevronDown, Pencil, Check, X, MoreVertical, Trash2, Map as MapIcon, ListChecks } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { FUNNEL_TYPES, FUNNEL_TYPE_LABELS, PROJECT_STAGES, PROJECT_STAGE_LABELS } from '../../lib/roadmapEstimate'
 import { isDateKeyOverdue } from '../../lib/dates'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Task, Project, User } from '../../types'
@@ -74,9 +73,6 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
   const [editLaunchDate, setEditLaunchDate] = useState(project.launch_date || '')
   // Etapa y tipo de embudo: solo si la base ya tiene las columnas (sql/2026-11-02_etapa_proyecto.sql).
   // (El proyecto se lee con select('*'): si trae la llave, la columna existe.)
-  const hasStageColumns = 'stage' in project || 'funnel_type' in project
-  const [editStage, setEditStage] = useState<string>(project.stage || '')
-  const [editFunnelType, setEditFunnelType] = useState<string>(project.funnel_type || '')
   const [savingName, setSavingName] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('abiertas')
   const [filterDept, setFilterDept] = useState<string>('todos')
@@ -154,8 +150,6 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
     setEditDesc(project.description || '')
     setEditRecordingMode(project.recording_mode || 'oficina')
     setEditLaunchDate(project.launch_date || '')
-    setEditStage(project.stage || '')
-    setEditFunnelType(project.funnel_type || '')
     setActionError('')
     setActionsOpen(false)
     setEditingName(true)
@@ -181,7 +175,6 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
         description: editDesc.trim() || null,
         recording_mode: editRecordingMode,
         launch_date: editLaunchDate || null,
-        ...(hasStageColumns ? { stage: editStage || null, funnel_type: editFunnelType || null } : {}),
         // La modalidad no modifica tareas existentes — solo se ajustan manualmente si aplica.
         ...(launchChanged && !project.launch_date_original ? { launch_date_original: editLaunchDate } : {}),
       }).eq('id', project.id).select('id').single()
@@ -450,27 +443,6 @@ export default function ProjectDetail({ project, tasks, teamMembers, projects, o
                     className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {hasStageColumns && (
-                  <div className="flex gap-2">
-                    <select
-                      aria-label="Etapa del proyecto"
-                      value={editStage}
-                      onChange={e => setEditStage(e.target.value)}
-                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Etapa: sin definir</option>
-                      {PROJECT_STAGES.map(stage => <option key={stage} value={stage}>{PROJECT_STAGE_LABELS[stage]}</option>)}
-                    </select>
-                    <select
-                      aria-label="Tipo de embudo"
-                      value={editFunnelType}
-                      onChange={e => setEditFunnelType(e.target.value)}
-                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Tipo de embudo: sin definir</option>
-                      {FUNNEL_TYPES.map(type => <option key={type} value={type}>{FUNNEL_TYPE_LABELS[type]}</option>)}
-                    </select>
-                  </div>
-                )}
-                {hasStageColumns && <p className="text-xs text-gray-400">Los proyectos "Corriendo campañas" no muestran fechas estimadas.</p>}
                 <p className="text-xs text-gray-400">Cambiar la modalidad no modifica las tareas ya creadas — ajusta manualmente las que correspondan.</p>
                 <div className="flex gap-2">
                   <button onClick={saveProjectName} disabled={savingName || !editName.trim()}
