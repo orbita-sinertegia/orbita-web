@@ -136,44 +136,40 @@ export default function TaskRequestsPanel() {
   if (loading) return <div className="flex items-center justify-center h-40 text-gray-400">Cargando solicitudes...</div>
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-bold text-gray-900 text-lg">Solicitudes de tareas</h3>
-          <p className="text-sm text-gray-500">Peticiones enviadas por los clientes</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-gray-950">Solicitudes de tareas</h1>
+          <p className="mt-1 text-sm text-gray-500">Peticiones enviadas por los clientes.</p>
         </div>
-        <div className="flex items-center gap-2">
-        <button type="button" onClick={fetchRequests} disabled={loading} className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 disabled:opacity-50" title="Actualizar solicitudes"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
-        {pending > 0 && (
-          <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1.5 rounded-full">
-            {pending} pendiente{pending > 1 ? 's' : ''}
-          </span>
-        )}
-        </div>
+        <button type="button" onClick={fetchRequests} disabled={loading} className="rounded-xl border border-gray-200/70 bg-white p-2.5 text-gray-500 shadow-sm hover:text-blue-600 disabled:opacity-50" title="Actualizar solicitudes" aria-label="Actualizar solicitudes"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
       </div>
 
       {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={17} />{error}</div>}
 
       {/* Filtros */}
-      <div className="flex gap-2 mb-5">
-        {(['pendiente', 'aprobada', 'rechazada', 'todas'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${filter === f ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-            {f === 'pendiente' ? `⏳ Pendientes (${pending})` : f === 'aprobada' ? `✅ Aprobadas (${approved})` : f === 'rechazada' ? `❌ Rechazadas (${rejected})` : `📋 Todas (${requests.length})`}
+      <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Filtrar solicitudes">
+        {([['pendiente', 'Pendientes', pending], ['aprobada', 'Aprobadas', approved], ['rechazada', 'Rechazadas', rejected], ['todas', 'Todas', requests.length]] as const).map(([f, label, count]) => (
+          <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${filter === f ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/25' : 'border-gray-200/70 bg-white text-gray-700 hover:border-blue-200'}`}>
+            {f === 'pendiente' && <Clock size={13} />}{label}
+            <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${filter === f ? 'bg-white/25 text-white' : 'bg-[#F1F0F6] text-gray-500'}`}>{count}</span>
           </button>
         ))}
       </div>
 
+      <div className="min-h-[460px] rounded-2xl border border-gray-200/70 bg-white p-4 shadow-sm sm:p-5">
       {filtered.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          <Clock size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No hay solicitudes {filter !== 'todas' ? `"${filter}"` : ''}</p>
+        <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+          <span className="mb-3 grid h-12 w-12 place-items-center rounded-xl bg-blue-100 text-blue-600"><Clock size={22} /></span>
+          <b className="text-gray-900">{filter === 'pendiente' ? 'No hay solicitudes pendientes' : filter === 'todas' ? 'No hay solicitudes' : `No hay solicitudes ${filter === 'aprobada' ? 'aprobadas' : 'rechazadas'}`}</b>
+          <span className="mt-1 text-sm text-gray-500">Cuando un cliente envíe una petición de tarea, aparecerá aquí para que la revises.</span>
         </div>
       )}
 
       <div className="space-y-3">
         {filtered.map(req => (
-          <div key={req.id} className={`bg-white border rounded-xl p-5 shadow-sm ${req.status === 'pendiente' ? 'border-orange-200' : req.status === 'aprobada' ? 'border-green-200' : 'border-gray-200'}`}>
+          <div key={req.id} className={`rounded-2xl border bg-white p-5 shadow-sm ${req.status === 'pendiente' ? 'border-ambar/40' : req.status === 'aprobada' ? 'border-green-200' : 'border-gray-200'}`}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 {/* Cliente y estado */}
@@ -230,6 +226,7 @@ export default function TaskRequestsPanel() {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )

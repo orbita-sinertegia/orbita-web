@@ -42,7 +42,6 @@ import { isClientAttributableDelay } from '../../lib/taskDelays'
 import TeamCapacity from './TeamCapacity'
 import TeamTasksManager from './TeamTasksManager'
 import TeamCalendar from './TeamCalendar'
-import WeeklyScorecard from './WeeklyScorecard'
 import TeamPerformance from './TeamPerformance'
 import AttendancePanel from './AttendancePanel'
 import CreateTaskModal from './CreateTaskModal'
@@ -143,7 +142,6 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [teamMembers, setTeamMembers] = useState<User[]>([])
   const [adminMembers, setAdminMembers] = useState<User[]>([])
-  const [performanceTab, setPerformanceTab] = useState<'tablero' | 'scorecard'>('tablero')
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('overview')
@@ -702,18 +700,7 @@ export default function AdminDashboard() {
             {view === 'calendar' && <>{finalizedNotice}<TeamCalendar teamMembers={teamMembers} adminMembers={adminMembers} tasks={operationalTasks} onlineIds={onlineIds} onTasksChange={fetchAll} /></>}
 
             {/* Vista rendimiento */}
-            {view === 'performance' && (
-              <div className="space-y-4">
-                <div className="flex w-fit rounded-lg border border-gray-200 bg-white p-1">
-                  {([['tablero', 'Tablero semanal'], ['scorecard', 'Scorecard']] as const).map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => setPerformanceTab(id)} className={`rounded-md px-4 py-1.5 text-xs font-semibold ${performanceTab === id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{label}</button>
-                  ))}
-                </div>
-                {performanceTab === 'tablero'
-                  ? <WeeklyScorecard teamMembers={teamMembers} adminMembers={adminMembers} tasks={metricTasks} />
-                  : <TeamPerformance teamMembers={teamMembers} tasks={metricTasks} />}
-              </div>
-            )}
+            {view === 'performance' && <TeamPerformance teamMembers={teamMembers} tasks={metricTasks} />}
 
             {/* Vista asistencia */}
             {view === 'attendance' && <AttendancePanel teamMembers={teamMembers} />}
